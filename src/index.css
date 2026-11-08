@@ -1,0 +1,49 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: 'JetBrains Mono', monospace, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  color-scheme: dark;
+  background-color: #05070B;
+}
+
+body, html, #root {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* Custom styling for Leva panel positioning and NASA cyber look */
+#leva__root {
+  position: absolute !important;
+  top: 60px !important;
+  right: 16px !important;
+  z-index: 50 !important;
+}
+
+#leva__root > div {
+  border: 1px solid rgba(0, 240, 255, 0.4) !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.7) !important;
+  backdrop-filter: blur(12px) !important;
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: #05070B;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #00F0FF;
+  border-radius: 2px;
+}
+
