@@ -4,42 +4,19 @@ import { useGLTF, Outlines } from '@react-three/drei';
 import { useFrame } from '@react-three/fiber';
 import { getFourStepGradientMap, applyCelShadingToHierarchy } from '../../utils/celShading';
 import { SpatialTelemetryTag, TelemetryData } from './SpatialTelemetryTag';
-
-// Telemetry datasets for the two diegetic tags
-const SOLAR_ARRAY_TELEMETRY: TelemetryData = {
-  subsystemId: 'EPS-SOLAR-ARRAY-01',
-  title: 'Ultra-Flex PV Generator & Power Bus',
-  status: 'NOMINAL',
-  metrics: [
-    { label: 'Bus Voltage', value: '31.84', unit: 'V' },
-    { label: 'Solar Flux', value: '584.2', unit: 'W/m²' },
-    { label: 'Panel Temp', value: '-24.6', unit: '°C' },
-    { label: 'Dust Deposition', value: '8.4', unit: '%' },
-  ],
-};
-
-const MAST_ARM_TELEMETRY: TelemetryData = {
-  subsystemId: 'NAV-MAST-ARM-04',
-  title: 'Mastcam-Z & Robotic Turret Assembly',
-  status: 'ACTIVE',
-  metrics: [
-    { label: 'Azimuth Joint', value: '138.2°', unit: 'AZ' },
-    { label: 'Elevation Joint', value: '+18.5°', unit: 'EL' },
-    { label: 'Laser Spectrometer', value: 'READY', unit: '' },
-    { label: 'Torque Sensor', value: '14.2', unit: 'N·m' },
-  ],
-};
+import { RoverDriveState } from '../../types/drive';
 
 interface ToonModelLoaderProps {
   modelUrl?: string;
   forceProcedural?: boolean;
+  driveState: RoverDriveState;
 }
 
 /**
  * GLTF Loader component that attempts to load /models/rover.glb
  * and injects the 4-step cel-shading gradient map into all traversed meshes.
  */
-function GLTFModel({ url }: { url: string }) {
+function GLTFModel({ url, driveState }: { url: string; driveState: RoverDriveState }) {
   const { scene } = useGLTF(url);
   const gradientMap = useMemo(() => getFourStepGradientMap(), []);
 
@@ -47,7 +24,7 @@ function GLTFModel({ url }: { url: string }) {
     const clone = scene.clone(true);
     applyCelShadingToHierarchy(clone, gradientMap);
 
-    // Automatically align bottom bounding box of any GLB model to ground level Y = 0
+    // Automatically align bottom bounding box of any GLB model to ground level
     const bbox = new THREE.Box3().setFromObject(clone);
     clone.position.y = -bbox.min.y;
 
@@ -55,26 +32,27 @@ function GLTFModel({ url }: { url: string }) {
   }, [scene, gradientMap]);
 
   return (
-    <primitive object={clonedScene} scale={[1, 1, 1]} castShadow receiveShadow>
-      <Outlines color="#090d16" thickness={0.015} />
-    </primitive>
+    <group
+      position={[driveState.x, driveState.y, driveState.z]}
+      rotation={[driveState.pitch, driveState.yaw, driveState.roll]}
+    >
+      <primitive object={clonedScene} scale={[1, 1, 1]} castShadow receiveShadow>
+        <Outlines color="#090d16" thickness={0.015} />
+      </primitive>
+    </group>
   );
 }
 
 /**
  * Procedural compound rover geometry built with precision boxes, cylinders,
- * suspension rocker-bogie arms, 6 wheels, mastcam, solar wings, and high-gain antenna.
- * Employs THREE.MeshToonMaterial with the 4-step gradient map on every part.
- *
- * Positioned at [0, 1.15, 0] so the 6 wheels (center Y: -0.75, radius: 0.42 -> contact Y: -1.17)
- * touch down firmly on the Martian landing pad (ground level Y = 0.00).
+ * suspension rocker-bogie arms, 6 independently rotating & steering wheels,
+ * mastcam, solar wings, and high-gain antenna.
  */
-function ProceduralRover() {
+function ProceduralRover({ driveState }: { driveState: RoverDriveState }) {
   const gradientMap = useMemo(() => getFourStepGradientMap(), []);
   const radarRef = useRef<THREE.Group>(null);
-  const wheelsRef = useRef<THREE.Group>(null);
 
-  // Subtle idle animation
+  // Subtle idle sensor pan
   useFrame((state) => {
     const t = state.clock.getElapsedTime();
     if (radarRef.current) {
@@ -121,8 +99,56 @@ function ProceduralRover() {
     [gradientMap]
   );
 
+  // Dynamic Telemetry derived from real drive state
+  const solarTelemetry: TelemetryData = useMemo(() => {
+    const motorDraw = Math.abs(driveState.speed) * 1.8;
+    const busV = (31.84 - motorDraw * 0.08).toFixed(2);
+    return {
+      subsystemId: 'EPS-SOLAR-ARRAY-01',
+      title: 'Ultra-Flex PV Generator & Power Bus',
+      status: 'NOMINAL',
+      metrics: [
+        { label: 'Bus Voltage', value: busV, unit: 'V' },
+        { label: 'Drive Load', value: motorDraw.toFixed(1), unit: 'A' },
+        { label: 'Solar Flux', value: '584.2', unit: 'W/m²' },
+        { label: 'Panel Temp', value: '-24.6', unit: '°C' },
+      ],
+    };
+  }, [driveState.speed]);
+
+  const mastTelemetry: TelemetryData = useMemo(() => {
+    const kmh = (Math.abs(driveState.speed) * 3.6).toFixed(1);
+    const steerDeg = (driveState.steerAngle * (180 / Math.PI)).toFixed(0);
+    const pitchDeg = (driveState.pitch * (180 / Math.PI)).toFixed(1);
+    const rollDeg = (driveState.roll * (180 / Math.PI)).toFixed(1);
+    return {
+      subsystemId: 'MOBILITY-NAV-MAST',
+      title: 'Drive & Mobility Telemetry',
+      status: Math.abs(driveState.speed) > 0.1 ? 'ACTIVE' : 'NOMINAL',
+      metrics: [
+        { label: 'Rover Velocity', value: kmh, unit: 'km/h' },
+        { label: 'Steer Angle', value: `${steerDeg}°`, unit: '' },
+        { label: 'Slope Incline', value: `P:${pitchDeg}° R:${rollDeg}°`, unit: '' },
+        { label: 'Odometer', value: driveState.odometer.toFixed(1), unit: 'm' },
+      ],
+    };
+  }, [driveState.speed, driveState.steerAngle, driveState.pitch, driveState.roll, driveState.odometer]);
+
+  // 6 Wheels with independent steering knuckles (Front + Rear counter-steer)
+  const wheels = [
+    { pos: [-1.45, -0.75, 1.35], name: 'W-FL', steer: driveState.steerAngle },
+    { pos: [1.45, -0.75, 1.35], name: 'W-FR', steer: driveState.steerAngle },
+    { pos: [-1.45, -0.75, 0.0], name: 'W-ML', steer: 0 },
+    { pos: [1.45, -0.75, 0.0], name: 'W-MR', steer: 0 },
+    { pos: [-1.45, -0.75, -1.35], name: 'W-RL', steer: -driveState.steerAngle * 0.7 },
+    { pos: [1.45, -0.75, -1.35], name: 'W-RR', steer: -driveState.steerAngle * 0.7 },
+  ];
+
   return (
-    <group position={[0, 1.15, 0]}>
+    <group
+      position={[driveState.x, driveState.y, driveState.z]}
+      rotation={[driveState.pitch, driveState.yaw, driveState.roll]}
+    >
       {/* 1. MAIN CHASSIS WARM ELECTRONICS BOX (WEB) */}
       <mesh
         castShadow
@@ -196,7 +222,7 @@ function ProceduralRover() {
         {/* DIEGETIC CALLOUT 1: Attached directly to Solar Panel Wing */}
         <SpatialTelemetryTag
           position={[-1.7, 0.25, -0.4]}
-          data={SOLAR_ARRAY_TELEMETRY}
+          data={solarTelemetry}
           distanceFactor={12}
           offset={[-45, -70]}
         />
@@ -276,7 +302,7 @@ function ProceduralRover() {
         {/* DIEGETIC CALLOUT 2: Attached directly to Mast Head */}
         <SpatialTelemetryTag
           position={[0, 1.85, 0.2]}
-          data={MAST_ARM_TELEMETRY}
+          data={mastTelemetry}
           distanceFactor={12}
           offset={[50, -65]}
         />
@@ -354,8 +380,8 @@ function ProceduralRover() {
         </mesh>
       </group>
 
-      {/* 6. ROCKER-BOGIE MOBILITY SUSPENSION & 6 WHEELS */}
-      <group ref={wheelsRef}>
+      {/* 6. ROCKER-BOGIE MOBILITY SUSPENSION & 6 STEERING WHEELS */}
+      <group>
         {/* Suspension Linkage Tubes (Left & Right) */}
         {[-1.3, 1.3].map((sideX, i) => (
           <group key={i}>
@@ -384,47 +410,46 @@ function ProceduralRover() {
           </group>
         ))}
 
-        {/* 6 Wheels (Front, Middle, Rear on each side) */}
-        {[
-          { pos: [-1.45, -0.75, 1.35], name: 'W-FL' },
-          { pos: [1.45, -0.75, 1.35], name: 'W-FR' },
-          { pos: [-1.45, -0.75, 0.0], name: 'W-ML' },
-          { pos: [1.45, -0.75, 0.0], name: 'W-MR' },
-          { pos: [-1.45, -0.75, -1.35], name: 'W-RL' },
-          { pos: [1.45, -0.75, -1.35], name: 'W-RR' },
-        ].map((wheel, index) => (
+        {/* 6 Wheels with Independent Steering & Rolling Spin */}
+        {wheels.map((wheel, index) => (
           <group key={index} position={wheel.pos as [number, number, number]}>
-            {/* Wheel Rim / Tire */}
-            <mesh
-              castShadow
-              receiveShadow
-              rotation={[0, 0, Math.PI / 2]}
-              material={materials.wheelTread}
-            >
-              <cylinderGeometry args={[0.42, 0.42, 0.32, 22]} />
-              <Outlines color="#090d16" thickness={0.015} />
-            </mesh>
-            {/* Wheel Hub Cap */}
-            <mesh
-              castShadow
-              receiveShadow
-              position={[wheel.pos[0] > 0 ? 0.17 : -0.17, 0, 0]}
-              rotation={[0, 0, Math.PI / 2]}
-              material={materials.hubGold}
-            >
-              <cylinderGeometry args={[0.16, 0.16, 0.05, 16]} />
-              <Outlines color="#090d16" thickness={0.015} />
-            </mesh>
-            {/* Tire Cleats / Grousers */}
-            {[0, 1, 2, 3, 4, 5].map((g) => (
-              <mesh
-                key={g}
-                rotation={[(g * Math.PI) / 3, 0, 0]}
-                material={materials.darkMetal}
-              >
-                <boxGeometry args={[0.34, 0.04, 0.86]} />
-              </mesh>
-            ))}
+            {/* Steering Knuckle (Yaw around vertical Y axis) */}
+            <group rotation={[0, wheel.steer, 0]}>
+              {/* Rolling Axle (Spin around X axis) */}
+              <group rotation={[driveState.wheelRotation, 0, 0]}>
+                {/* Wheel Rim / Tire Cylinder */}
+                <mesh
+                  castShadow
+                  receiveShadow
+                  rotation={[0, 0, Math.PI / 2]}
+                  material={materials.wheelTread}
+                >
+                  <cylinderGeometry args={[0.42, 0.42, 0.32, 22]} />
+                  <Outlines color="#090d16" thickness={0.015} />
+                </mesh>
+                {/* Wheel Hub Cap */}
+                <mesh
+                  castShadow
+                  receiveShadow
+                  position={[wheel.pos[0] > 0 ? 0.17 : -0.17, 0, 0]}
+                  rotation={[0, 0, Math.PI / 2]}
+                  material={materials.hubGold}
+                >
+                  <cylinderGeometry args={[0.16, 0.16, 0.05, 16]} />
+                  <Outlines color="#090d16" thickness={0.015} />
+                </mesh>
+                {/* Tire Cleats / Grousers for traction on regolith */}
+                {[0, 1, 2, 3, 4, 5].map((g) => (
+                  <mesh
+                    key={g}
+                    rotation={[(g * Math.PI) / 3, 0, 0]}
+                    material={materials.darkMetal}
+                  >
+                    <boxGeometry args={[0.34, 0.04, 0.86]} />
+                  </mesh>
+                ))}
+              </group>
+            </group>
           </group>
         ))}
       </group>
@@ -434,7 +459,6 @@ function ProceduralRover() {
 
 /**
  * Robust Error Boundary wrapper for asynchronous GLTF loading.
- * Gracefully switches to Procedural compound rover if file is missing or corrupt.
  */
 class GLTFErrorBoundary extends React.Component<
   { fallback: React.ReactNode; children: React.ReactNode },
@@ -467,15 +491,16 @@ class GLTFErrorBoundary extends React.Component<
 export const ToonModelLoader: React.FC<ToonModelLoaderProps> = ({
   modelUrl = '/models/rover.glb',
   forceProcedural = false,
+  driveState,
 }) => {
   if (forceProcedural) {
-    return <ProceduralRover />;
+    return <ProceduralRover driveState={driveState} />;
   }
 
   return (
-    <GLTFErrorBoundary fallback={<ProceduralRover />}>
-      <Suspense fallback={<ProceduralRover />}>
-        <GLTFModel url={modelUrl} />
+    <GLTFErrorBoundary fallback={<ProceduralRover driveState={driveState} />}>
+      <Suspense fallback={<ProceduralRover driveState={driveState} />}>
+        <GLTFModel url={modelUrl} driveState={driveState} />
       </Suspense>
     </GLTFErrorBoundary>
   );

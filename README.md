@@ -165,16 +165,34 @@ npm run preview
 
 ---
 
-## User Controls & Interaction
+## User Controls & Driving Interaction
 
-| Input | Action |
-| :--- | :--- |
-| **Left Click + Drag** | Orbit camera around the rover's center of mass |
-| **Right Click + Drag** | Pan camera laterally |
-| **Scroll Wheel** | Zoom in / out (clamped to $[3.5\text{m}, 60\text{m}]$, horizon-locked above terrain) |
-| **Click on Telemetry Card** | Toggle expanded telemetry metric readouts |
-| **Leva GUI (Top Right)** | Switch Era Presets, toggle individual post-processing passes, adjust sun intensity, terrain wireframe, or switch between procedural and custom models |
-| **Quick Era Buttons (HUD)** | One-click era switching directly from the HUD overlay |
+The rover is fully drivable across the 200m $\times$ 200m Martian crater terrain with real-time 6-wheel suspension conforming to slopes, dynamic steering knuckles, and animated tire rotation.
+
+### Keyboard & Touch Drive Mappings
+
+| Input | Action | Effect |
+| :--- | :--- | :--- |
+| **`W` / `Arrow Up`** | **Forward Throttle** | Accelerates forward up to $21\,\text{km/h}$ (or $38\,\text{km/h}$ on Boost) |
+| **`S` / `Arrow Down`** | **Reverse Throttle** | Drives in reverse with rear wheel rotation |
+| **`A` / `Arrow Left`** | **Steer Left** | Pivots front and rear steering knuckles into a banked left turn |
+| **`D` / `Arrow Right`** | **Steer Right** | Pivots front and rear steering knuckles into a banked right turn |
+| **`Shift`** | **High-Gear Boost** | Unlocks $38\,\text{km/h}$ exploration gear for climbing steep crater walls |
+| **`Space`** | **Active Brake** | Applies hydraulic deceleration ($15\,\text{m/s}^2$) |
+| **`R`** | **Re-center / Reset** | Teleports rover back to the leveled landing pad at $(0, 0)$ |
+| **`C`** | **Toggle Camera Mode** | Toggles between **Chase Cam (Follow)** and **Free Orbit Camera** |
+| **On-Screen D-Pad** | **Touch / Mouse Controls** | Click or touch the HUD D-Pad buttons at the bottom-right to drive |
+| **Mouse Orbit & Zoom** | **OrbitControls** | In Orbit Cam mode, pan, zoom, or orbit around the moving rover |
+
+---
+
+## Kinematics & Suspension Engine
+
+* **Terrain Elevation Conformation**: In every frame, the rover samples ground height $Y = \text{sampleMartianElevation}(x, z)$ so the wheels remain solidly planted on the surface with zero floating.
+* **4-Point Slope Probing (Pitch & Roll)**: Probes $Y$ elevations at the front axle, rear axle, port wheels, and starboard wheels to calculate pitch ($\theta$) and roll ($\phi$), smoothly tilting the chassis over rocky crater terraces and dune slopes.
+* **4-Wheel Independent Steering**: Front wheels turn in the direction of the turn, while rear wheels counter-steer at 70% angle (modeling NASA Curiosity / Perseverance rocker-bogie steering) to enable tight cornering and zero-radius pivot spins.
+* **Regolith Dust Trail**: Emits low-poly cel-shaded Martian ochre dust puffs behind the wheels proportional to vehicle speed.
+* **Live Diegetic Telemetry**: The two 3D spatial callouts directly reflect live driving telemetry: speed in $\text{km/h}$, motor load in Amperes, steering angle, inclinometer tilt degrees, and total distance traveled.
 
 ---
 

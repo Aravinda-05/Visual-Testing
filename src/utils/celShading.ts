@@ -15,7 +15,7 @@ export function getFourStepGradientMap(): THREE.DataTexture {
 
   // 4 discrete luminance steps
   const steps = new Uint8Array([40, 105, 185, 255]);
-  
+
   // THREE.RedFormat is the modern standard for 1-channel textures in WebGL2
   const texture = new THREE.DataTexture(steps, 4, 1, THREE.RedFormat);
   texture.minFilter = THREE.NearestFilter;
@@ -31,14 +31,34 @@ export function getFourStepGradientMap(): THREE.DataTexture {
  * Traverses any Object3D hierarchy and converts all mesh materials to
  * THREE.MeshToonMaterial with the provided 4-band gradient map.
  * Preserves original diffuse colors, textures, and transparency.
+ * Adds inverted-hull comic ink outlines to geometry.
  */
 export function applyCelShadingToHierarchy(
   root: THREE.Object3D,
   gradientMap: THREE.Texture = getFourStepGradientMap()
 ): void {
+  const outlineMaterial = new THREE.MeshBasicMaterial({
+    color: new THREE.Color('#090d16'),
+    side: THREE.BackSide,
+  });
+
+  const meshesToOutline: THREE.Mesh[] = [];
+
   root.traverse((node) => {
-    if ((node as THREE.Mesh).isMesh) {
+    // Only process mesh nodes
+    if ((node as THREE.Mesh).isMesh && !(node as any).isOutline) {
       const mesh = node as THREE.Mesh;
+
+      // Skip meshes with zero vertices
+      if (
+        !mesh.geometry ||
+        !mesh.geometry.attributes.position ||
+        mesh.geometry.attributes.position.count === 0
+      ) {
+        mesh.visible = false;
+        return;
+      }
+
       mesh.castShadow = true;
       mesh.receiveShadow = true;
 
@@ -82,7 +102,17 @@ export function applyCelShadingToHierarchy(
       });
 
       mesh.material = toonMat;
+      meshesToOutline.push(mesh);
     }
   });
-}
 
+  // Attach comic book ink inverted hull outlines to active meshes
+  for (const m of meshesToOutline) {
+    if (m.geometry && m.geometry.attributes.position?.count > 0) {
+      const outline = new THREE.Mesh(m.geometry, outlineMaterial);
+      (outline as any).isOutline = true;
+      outline.scale.set(1.018, 1.018, 1.018);
+      m.add(outline);
+    }
+  }
+}
