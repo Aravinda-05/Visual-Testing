@@ -454,3 +454,4 @@ When instructed to apply this sandbox to a **new rover** (e.g. `perseverance.glb
 4. **Step 4 (Measure Dimensions):** Measure `halfWheelbase` and `halfTrackwidth` from `wheelsBox` and update the probe offsets in the vehicle kinematics component.
 5. **Step 5 (Hotspots):** Update `subsystemHotspots.ts` with node names corresponding to the new model's instruments (e.g., PIXL, SHERLOC, SuperCam).
 6. **Step 6 (Verify Build):** Run `npm run build` (`tsc && vite build`) to ensure 0 TypeScript compilation errors.
+
