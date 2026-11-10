@@ -39,6 +39,7 @@ export interface MissionState {
   cameraMode: CameraMode;
   eraShaderOverride: EraShader;
   isCodexOpen: boolean;
+  isOpticalFeedOpen: boolean;
   distanceToTarget: number;
   discoveredMinerals: boolean;
   resetCounter: number;
@@ -67,6 +68,8 @@ export interface MissionState {
   cycleCameraMode: () => void;
   setEraShaderOverride: (era: EraShader) => void;
   toggleCodex: () => void;
+  toggleOpticalFeed: () => void;
+  setOpticalFeedOpen: (open: boolean) => void;
   resetMission: () => void;
 }
 
@@ -90,6 +93,7 @@ const INITIAL_STATE = {
   cameraMode: 'THIRD_PERSON_DRONE' as CameraMode,
   eraShaderOverride: '2012_MSL_DEFAULT' as EraShader,
   isCodexOpen: false,
+  isOpticalFeedOpen: false,
   distanceToTarget: 34.0,
   discoveredMinerals: false,
   lastLaserFireTime: 0,
@@ -298,6 +302,14 @@ export const useMissionStore = create<MissionState>((set, get) => ({
 
   toggleCodex: () => {
     set((s) => ({ isCodexOpen: !s.isCodexOpen }));
+  },
+
+  toggleOpticalFeed: () => {
+    set((s) => ({ isOpticalFeedOpen: !s.isOpticalFeedOpen }));
+  },
+
+  setOpticalFeedOpen: (open: boolean) => {
+    set({ isOpticalFeedOpen: open });
   },
 
   resetMission: () => {

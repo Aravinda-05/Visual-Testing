@@ -4,7 +4,8 @@ import { useFrame } from '@react-three/fiber';
 import { useFBO } from '@react-three/drei';
 import { useMissionStore } from '../store/useMissionStore';
 import { JOHN_KLEIN_POS, getTerrainHeight } from '../utils/terrainMath';
-import { Video, Target, Crosshair } from 'lucide-react';
+import { soundEngine } from '../utils/soundEngine';
+import { Video, Target, Crosshair, X } from 'lucide-react';
 
 const PIP_VERTEX_SHADER = `
 varying vec2 vUv;
@@ -380,6 +381,8 @@ export const MastCameraRenderer: React.FC = () => {
  * Sits inside the right-hand column directly beneath the Directive Card.
  */
 export const OpticalSensorPiP: React.FC = () => {
+  const isOpticalFeedOpen = useMissionStore((s) => s.isOpticalFeedOpen);
+  const toggleOpticalFeed = useMissionStore((s) => s.toggleOpticalFeed);
   const [isMinimized, setIsMinimized] = React.useState(false);
   const era = useMissionStore((s) => s.eraShaderOverride);
   const setEraShaderOverride = useMissionStore((s) => s.setEraShaderOverride);
@@ -388,8 +391,12 @@ export const OpticalSensorPiP: React.FC = () => {
   const cameraMode = useMissionStore((s) => s.cameraMode);
   const setCameraMode = useMissionStore((s) => s.setCameraMode);
 
+  if (!isOpticalFeedOpen) {
+    return null;
+  }
+
   return (
-    <div className="pointer-events-auto flex flex-col font-mono select-none">
+    <div className="pointer-events-auto flex flex-col font-mono select-none animate-fadeIn">
       {/* Outer Telemetry Container: NO background on outer container so the canvas shines through the viewport! */}
       <div className="relative w-[360px] border border-cyan-400/50 rounded-lg shadow-[0_0_25px_rgba(0,240,255,0.25)] overflow-hidden bg-transparent">
         {/* 1. Header Bar: Solid background */}
@@ -397,7 +404,10 @@ export const OpticalSensorPiP: React.FC = () => {
           <div className="flex items-center gap-1.5 font-bold text-cyan-200">
             <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
             <Video className="w-3.5 h-3.5 text-cyan-400" />
-            <span>LIVE OPTICAL TELEMETRY FEED</span>
+            <span>OPTICAL TELEMETRY FEED</span>
+            <span className="text-[8.5px] px-1 py-0.2 bg-cyan-950 border border-cyan-400 text-cyan-300 rounded font-mono font-bold">
+              [E]
+            </span>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-[9px] text-amber-300 font-bold">28° FOV // 1064nm</span>
@@ -407,6 +417,16 @@ export const OpticalSensorPiP: React.FC = () => {
               title={isMinimized ? 'Expand Feed' : 'Minimize Feed'}
             >
               {isMinimized ? '▲' : '▼'}
+            </button>
+            <button
+              onClick={() => {
+                toggleOpticalFeed();
+                soundEngine.playUiBlip();
+              }}
+              className="p-0.5 rounded text-slate-400 hover:text-red-400 hover:bg-red-950/40 transition"
+              title="Close Optical Telemetry Feed [E]"
+            >
+              <X className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>

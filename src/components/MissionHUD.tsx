@@ -41,6 +41,8 @@ export const MissionHUD: React.FC = () => {
   const roverSpeed = useMissionStore((s) => s.roverSpeed);
   const discoveredHotspots = useMissionStore((s) => s.discoveredHotspots);
   const setSelectedHotspotId = useMissionStore((s) => s.setSelectedHotspotId);
+  const isOpticalFeedOpen = useMissionStore((s) => s.isOpticalFeedOpen);
+  const toggleOpticalFeed = useMissionStore((s) => s.toggleOpticalFeed);
 
   const startMission = useMissionStore((s) => s.startMission);
   const setCameraMode = useMissionStore((s) => s.setCameraMode);
@@ -260,13 +262,30 @@ export const MissionHUD: React.FC = () => {
               <span className="text-[10px] font-bold text-amber-300 uppercase tracking-wider">
                 {missionPhase.replace('_', ' ')}
               </span>
-              {/* MRO Countdown */}
-              <div className="flex items-center space-x-1 text-[11px] font-bold">
-                <Clock className={`w-3.5 h-3.5 ${mroWindowSec < 25 ? 'text-red-400 animate-ping' : 'text-cyan-400'}`} />
-                <span className="text-slate-400">MRO RELAY:</span>
-                <span className={`font-mono ${mroWindowSec < 25 ? 'text-red-400 font-extrabold' : 'text-[#00F0FF]'}`}>
-                  {mroFormatted}
-                </span>
+              <div className="flex items-center gap-2">
+                {/* [E] Optical Feed Toggle Button */}
+                <button
+                  onClick={() => {
+                    toggleOpticalFeed();
+                    soundEngine.playUiBlip();
+                  }}
+                  className={`px-1.5 py-0.5 rounded text-[8.5px] font-mono font-bold border transition-all ${
+                    isOpticalFeedOpen
+                      ? 'bg-cyan-500 text-black border-cyan-300 shadow-[0_0_8px_rgba(0,240,255,0.6)]'
+                      : 'bg-black/60 border-slate-700 text-slate-400 hover:text-cyan-300 hover:border-cyan-400'
+                  }`}
+                  title="Toggle Live Optical Telemetry Feed [E]"
+                >
+                  [E] OPTICAL FEED
+                </button>
+                {/* MRO Countdown */}
+                <div className="flex items-center space-x-1 text-[11px] font-bold">
+                  <Clock className={`w-3.5 h-3.5 ${mroWindowSec < 25 ? 'text-red-400 animate-ping' : 'text-cyan-400'}`} />
+                  <span className="text-slate-400">MRO:</span>
+                  <span className={`font-mono ${mroWindowSec < 25 ? 'text-red-400 font-extrabold' : 'text-[#00F0FF]'}`}>
+                    {mroFormatted}
+                  </span>
+                </div>
               </div>
             </div>
 
@@ -495,7 +514,7 @@ export const MissionHUD: React.FC = () => {
             <div>
               <div className="text-cyan-300 font-bold mb-0.5">CONTROLS:</div>
               <div className="text-slate-400">
-                [WASD / Arrows] Drive • [C] Camera POV • [Shift] Boost • [Space] ChemCam • [R] Reset
+                [WASD / Arrows] Drive • [C] Camera POV • [E] Optical Feed • [Shift] Boost • [Space] ChemCam • [R] Reset
               </div>
             </div>
             <button

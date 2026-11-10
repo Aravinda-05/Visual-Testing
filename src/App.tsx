@@ -10,6 +10,7 @@ export const App: React.FC = () => {
   const setEraShaderOverride = useMissionStore((s) => s.setEraShaderOverride);
   const setCameraMode = useMissionStore((s) => s.setCameraMode);
   const toggleCodex = useMissionStore((s) => s.toggleCodex);
+  const toggleOpticalFeed = useMissionStore((s) => s.toggleOpticalFeed);
   const resetMission = useMissionStore((s) => s.resetMission);
   const distanceToTarget = useMissionStore((s) => s.distanceToTarget);
   const missionPhase = useMissionStore((s) => s.missionPhase);
@@ -64,12 +65,10 @@ export const App: React.FC = () => {
         soundEngine.playUiBlip();
       }
 
-      // Context action [E]: engage telescope when in range
+      // Toggle Live Optical Telemetry Feed [E]
       if (key === 'KeyE') {
-        if (distanceToTarget <= 7.0 && missionPhase === 'EXPLORING') {
-          setCameraMode('CHEMCAM_TELESCOPE');
-          setMissionPhase('LASER_TARGETING');
-        }
+        toggleOpticalFeed();
+        soundEngine.playUiBlip();
       }
 
       // Codex Drawer toggle [Tab]
@@ -104,7 +103,7 @@ export const App: React.FC = () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [distanceToTarget, missionPhase, setCameraMode, setEraShaderOverride, setMissionPhase, toggleCodex, resetMission]);
+  }, [distanceToTarget, missionPhase, setCameraMode, setEraShaderOverride, setMissionPhase, toggleCodex, toggleOpticalFeed, resetMission]);
 
   return (
     <main className="relative w-screen h-screen overflow-hidden bg-[#0a0503] select-none font-mono">

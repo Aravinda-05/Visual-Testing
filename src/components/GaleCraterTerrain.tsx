@@ -172,7 +172,7 @@ export const GaleCraterTerrain: React.FC = () => {
                 }}
                 className="w-full py-1 px-2 rounded bg-cyan-950 border border-cyan-400 text-white font-bold text-[10px] hover:bg-cyan-800 transition animate-pulse"
               >
-                [PRESS E] ENGAGE CHEMCAM TELESCOPE
+                CLICK TO ENGAGE CHEMCAM TELESCOPE
               </button>
             )}
           </div>
