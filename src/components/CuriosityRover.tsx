@@ -6,6 +6,7 @@ import { useMissionStore } from '../store/useMissionStore';
 import { getTerrainHeight, ROCK_HAZARDS, JOHN_KLEIN_POS } from '../utils/terrainMath';
 import { soundEngine } from '../utils/soundEngine';
 import { getFourStepGradientMap, applyCelShadingToHierarchy } from '../utils/celShading';
+import { RoverHotspots } from './RoverHotspots';
 
 // Configure Draco decoder path so Draco compressed GLB loads seamlessly
 useGLTF.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
@@ -429,69 +430,8 @@ export const CuriosityRover: React.FC<CuriosityRoverProps> = ({ controlsRef }) =
         </Suspense>
       </ModelErrorBoundary>
 
-      {/* 3 Spatial Diegetic 3D Telemetry Callouts */}
-
-      {/* 1. Rear MMRTG Nuclear Power Battery Callout */}
-      <group position={[0, 1.25, -1.6]}>
-        <Html distanceFactor={10} occlude center className="pointer-events-none select-none">
-          <div className="font-mono text-[9px] bg-[#05070B]/92 border border-amber-400 p-1.5 rounded text-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.4)] whitespace-nowrap backdrop-blur-md">
-            <div className="flex items-center space-x-1 border-b border-amber-500/40 pb-0.5 mb-1 font-bold">
-              <span className={`w-1.5 h-1.5 rounded-full ${mmrtgCooldown ? 'bg-red-500 animate-ping' : 'bg-amber-400 animate-pulse'}`} />
-              <span>MMRTG NUCLEAR THERMAL</span>
-            </div>
-            <div className="flex justify-between space-x-3 text-[8.5px]">
-              <span className="text-slate-400">OUTPUT:</span>
-              <span className="font-bold text-white">110 W</span>
-            </div>
-            <div className="flex justify-between space-x-3 text-[8.5px]">
-              <span className="text-slate-400">CORE TEMP:</span>
-              <span className={`font-bold ${mmrtgCoreTempC > 210 ? 'text-red-400 animate-pulse' : 'text-amber-300'}`}>
-                {mmrtgCoreTempC.toFixed(1)}°C
-              </span>
-            </div>
-          </div>
-        </Html>
-      </group>
-
-      {/* 2. Mast ChemCam 1064nm Pulsed LIBS Laser Callout */}
-      <group position={[0.42, 2.3, 0.85]}>
-        <Html distanceFactor={10} occlude center className="pointer-events-none select-none">
-          <div className="font-mono text-[9px] bg-[#05070B]/92 border border-[#00F0FF] p-1.5 rounded text-cyan-300 shadow-[0_0_12px_rgba(0,240,255,0.4)] whitespace-nowrap backdrop-blur-md">
-            <div className="flex items-center space-x-1 border-b border-cyan-500/40 pb-0.5 mb-1 font-bold">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#00F0FF] animate-ping" />
-              <span>CHEMCAM 1064nm LIBS</span>
-            </div>
-            <div className="flex justify-between space-x-3 text-[8.5px]">
-              <span className="text-slate-400">PULSES:</span>
-              <span className="font-bold text-white">{laserPulsesHit} / 30</span>
-            </div>
-            <div className="flex justify-between space-x-3 text-[8.5px]">
-              <span className="text-slate-400">STATUS:</span>
-              <span className="font-bold text-cyan-200">
-                {laserPulsesHit >= 30 ? 'SPECTRA CAPTURED' : 'SPECTROMETER READY'}
-              </span>
-            </div>
-          </div>
-        </Html>
-      </group>
-
-      {/* 3. Front-Left Aluminum Wheel Integrity Callout */}
-      <group position={[-1.4, 0.5, 1.15]}>
-        <Html distanceFactor={10} occlude center className="pointer-events-none select-none">
-          <div className="font-mono text-[9px] bg-[#05070B]/92 border border-slate-400 p-1.5 rounded text-slate-200 shadow-[0_0_12px_rgba(255,255,255,0.2)] whitespace-nowrap backdrop-blur-md">
-            <div className="flex items-center space-x-1 border-b border-slate-500/40 pb-0.5 mb-1 font-bold">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-              <span>0.75mm AL WHEEL</span>
-            </div>
-            <div className="flex justify-between space-x-3 text-[8.5px]">
-              <span className="text-slate-400">INTEGRITY:</span>
-              <span className={`font-bold ${wheelIntegrityPct < 60 ? 'text-red-400' : 'text-emerald-400'}`}>
-                {wheelIntegrityPct.toFixed(1)}%
-              </span>
-            </div>
-          </div>
-        </Html>
-      </group>
+      {/* Interactive 3D Hardware Hotspot Inspection System */}
+      <RoverHotspots />
     </group>
   );
 };

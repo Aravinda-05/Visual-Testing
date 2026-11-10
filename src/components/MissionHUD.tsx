@@ -2,6 +2,8 @@ import React, { useRef, useEffect } from 'react';
 import { useMissionStore } from '../store/useMissionStore';
 import { soundEngine } from '../utils/soundEngine';
 import { OpticalSensorPiP } from './OpticalSensorPiP';
+import { HotspotInspectionCard } from './RoverHotspots';
+import { CURIOSITY_HOTSPOTS } from '../data/curiosityHotspots';
 import {
   Radio,
   Clock,
@@ -17,6 +19,7 @@ import {
   Sparkles,
   Signal,
   X,
+  Cpu,
 } from 'lucide-react';
 
 export const MissionHUD: React.FC = () => {
@@ -36,6 +39,8 @@ export const MissionHUD: React.FC = () => {
   const isCodexOpen = useMissionStore((s) => s.isCodexOpen);
   const distanceToTarget = useMissionStore((s) => s.distanceToTarget);
   const roverSpeed = useMissionStore((s) => s.roverSpeed);
+  const discoveredHotspots = useMissionStore((s) => s.discoveredHotspots);
+  const setSelectedHotspotId = useMissionStore((s) => s.setSelectedHotspotId);
 
   const startMission = useMissionStore((s) => s.startMission);
   const setCameraMode = useMissionStore((s) => s.setCameraMode);
@@ -188,7 +193,19 @@ export const MissionHUD: React.FC = () => {
 
           <div className="flex items-center justify-between text-[9px] text-slate-400">
             <span>[C] CAMERA: <strong className="text-cyan-200">{cameraMode}</strong></span>
-            <span>[TAB] CODEX ARCHIVE</span>
+            <button
+              onClick={toggleCodex}
+              className="flex items-center gap-1.5 hover:text-white transition-colors"
+            >
+              <span>[TAB] CODEX</span>
+              <span className={`px-1.5 py-0.2 rounded font-bold ${
+                discoveredHotspots.length === 6
+                  ? 'bg-emerald-950 border border-emerald-400 text-emerald-300'
+                  : 'bg-cyan-950 border border-cyan-400/80 text-cyan-300'
+              }`}>
+                HW: {discoveredHotspots.length}/6
+              </span>
+            </button>
           </div>
         </div>
 
@@ -501,6 +518,69 @@ export const MissionHUD: React.FC = () => {
             </button>
           </div>
 
+          {/* Hardware Scanned Codex Progress Card */}
+          <div className="bg-cyan-950/40 border border-cyan-400/50 rounded p-3 mb-4 shadow-[0_0_15px_rgba(0,240,255,0.15)]">
+            <div className="flex items-center justify-between text-xs font-mono font-bold mb-2">
+              <span className="flex items-center gap-1.5 text-cyan-300">
+                <Cpu className="w-4 h-4 text-amber-400 animate-pulse" />
+                <span>HARDWARE SCANNED</span>
+              </span>
+              <span className={`px-2 py-0.5 rounded font-mono font-bold ${
+                discoveredHotspots.length === 6
+                  ? 'bg-emerald-500 text-black shadow-[0_0_8px_#10B981]'
+                  : 'bg-amber-950 border border-amber-400 text-amber-300'
+              }`}>
+                {discoveredHotspots.length} / 6
+              </span>
+            </div>
+
+            {/* 6-segment Progress Bar */}
+            <div className="grid grid-cols-6 gap-1 h-2 bg-slate-900 rounded overflow-hidden mb-3 p-0.5 border border-slate-700">
+              {CURIOSITY_HOTSPOTS.map((s) => {
+                const isDiscovered = discoveredHotspots.includes(s.id);
+                return (
+                  <div
+                    key={s.id}
+                    className={`h-full rounded-sm transition-all duration-300 ${
+                      isDiscovered
+                        ? 'bg-gradient-to-r from-amber-400 to-emerald-400 shadow-[0_0_4px_#10B981]'
+                        : 'bg-slate-800'
+                    }`}
+                  />
+                );
+              })}
+            </div>
+
+            {/* Subsystem Quick List / Jump Links */}
+            <div className="grid grid-cols-2 gap-1.5 text-[9.5px] font-mono">
+              {CURIOSITY_HOTSPOTS.map((s) => {
+                const isDiscovered = discoveredHotspots.includes(s.id);
+                return (
+                  <button
+                    key={s.id}
+                    onClick={() => {
+                      setSelectedHotspotId(s.id);
+                      toggleCodex();
+                      soundEngine.playHotspotSelect();
+                    }}
+                    className={`flex items-center justify-between p-1.5 rounded border text-left transition-colors ${
+                      isDiscovered
+                        ? 'bg-emerald-950/40 border-emerald-500/50 text-emerald-200 hover:bg-emerald-900/50'
+                        : 'bg-slate-900/70 border-slate-800 text-slate-400 hover:border-cyan-400/60 hover:text-white'
+                    }`}
+                  >
+                    <span className="truncate pr-1">{s.shortName}</span>
+                    {isDiscovered ? (
+                      <CheckCircle2 className="w-3 h-3 text-emerald-400 flex-shrink-0" />
+                    ) : (
+                      <span className="text-[8px] text-amber-400/80 font-bold flex-shrink-0">+</span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           <div className="text-[11px] text-slate-300 space-y-4 leading-relaxed font-sans">
             <div>
               <h3 className="font-mono text-xs font-bold text-amber-300 mb-1">
@@ -540,6 +620,9 @@ export const MissionHUD: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* 7. Interactive 3D Hardware Hotspot Cassette-Futurism Inspection Card & SVG Connector */}
+      <HotspotInspectionCard />
     </div>
   );
 };

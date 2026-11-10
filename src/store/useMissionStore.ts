@@ -43,10 +43,14 @@ export interface MissionState {
   discoveredMinerals: boolean;
   resetCounter: number;
   lastLaserFireTime: number;
+  selectedHotspotId: string | null;
+  discoveredHotspots: string[];
 
   // Actions
   startMission: () => void;
   setMissionPhase: (phase: MissionPhase) => void;
+  setSelectedHotspotId: (id: string | null) => void;
+  discoverHotspot: (id: string) => void;
   setRoverTransform: (
     pos: [number, number, number],
     rotation: number,
@@ -88,6 +92,8 @@ const INITIAL_STATE = {
   distanceToTarget: 34.0,
   discoveredMinerals: false,
   lastLaserFireTime: 0,
+  selectedHotspotId: null as string | null,
+  discoveredHotspots: [] as string[],
 };
 
 export const useMissionStore = create<MissionState>((set, get) => ({
@@ -96,6 +102,27 @@ export const useMissionStore = create<MissionState>((set, get) => ({
 
   startMission: () => {
     set({ missionPhase: 'EXPLORING' });
+  },
+
+  setSelectedHotspotId: (id: string | null) => {
+    if (id) {
+      const { discoveredHotspots } = get();
+      if (!discoveredHotspots.includes(id)) {
+        set({
+          selectedHotspotId: id,
+          discoveredHotspots: [...discoveredHotspots, id],
+        });
+        return;
+      }
+    }
+    set({ selectedHotspotId: id });
+  },
+
+  discoverHotspot: (id: string) => {
+    const { discoveredHotspots } = get();
+    if (!discoveredHotspots.includes(id)) {
+      set({ discoveredHotspots: [...discoveredHotspots, id] });
+    }
   },
 
   setMissionPhase: (phase: MissionPhase) => {
