@@ -47,6 +47,7 @@ export const MissionHUD: React.FC = () => {
   const startMission = useMissionStore((s) => s.startMission);
   const setCameraMode = useMissionStore((s) => s.setCameraMode);
   const cycleCameraMode = useMissionStore((s) => s.cycleCameraMode);
+  const exitTelescope = useMissionStore((s) => s.exitTelescope);
   const setEraShaderOverride = useMissionStore((s) => s.setEraShaderOverride);
   const setAntennaAngles = useMissionStore((s) => s.setAntennaAngles);
   const toggleCodex = useMissionStore((s) => s.toggleCodex);
@@ -500,10 +501,13 @@ export const MissionHUD: React.FC = () => {
 
           {cameraMode === 'CHEMCAM_TELESCOPE' && (
             <button
-              onClick={() => setCameraMode('THIRD_PERSON_DRONE')}
-              className="px-3 py-1.5 rounded bg-slate-800 text-slate-200 font-bold text-xs border border-slate-600 hover:bg-slate-700 transition"
+              onClick={() => {
+                exitTelescope();
+                soundEngine.playUiBlip();
+              }}
+              className="px-3 py-1.5 rounded bg-slate-800 text-slate-200 font-bold text-xs border border-slate-600 hover:bg-slate-700 transition shadow-md"
             >
-              EXIT TELESCOPE [C]
+              EXIT TELESCOPE [ESC]
             </button>
           )}
         </div>
@@ -514,7 +518,7 @@ export const MissionHUD: React.FC = () => {
             <div>
               <div className="text-cyan-300 font-bold mb-0.5">CONTROLS:</div>
               <div className="text-slate-400">
-                [WASD / Arrows] Drive • [C] Camera POV • [E] Optical Feed • [Shift] Boost • [Space] ChemCam • [R] Reset
+                [WASD / Arrows] Drive • [C] POV (Follow/Orbit) • [E] Optical Feed • [Space] ChemCam • [ESC] Exit Laser • [R] Reset
               </div>
             </div>
             <button

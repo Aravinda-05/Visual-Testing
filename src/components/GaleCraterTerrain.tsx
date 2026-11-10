@@ -9,6 +9,7 @@ export const GaleCraterTerrain: React.FC = () => {
   const gradientMap = useMemo(() => getFourStepGradientMap(), []);
   const distanceToTarget = useMissionStore((s) => s.distanceToTarget);
   const missionPhase = useMissionStore((s) => s.missionPhase);
+  const cameraMode = useMissionStore((s) => s.cameraMode);
   const setCameraMode = useMissionStore((s) => s.setCameraMode);
   const setMissionPhase = useMissionStore((s) => s.setMissionPhase);
 
@@ -82,6 +83,7 @@ export const GaleCraterTerrain: React.FC = () => {
   );
 
   const isInLaserRange = distanceToTarget <= 7.0;
+  const showTargetBeacon = missionPhase === 'EXPLORING' && cameraMode !== 'CHEMCAM_TELESCOPE';
 
   return (
     <group>
@@ -144,39 +146,49 @@ export const GaleCraterTerrain: React.FC = () => {
           />
         </mesh>
 
-        {/* Spatial Discovery Beacon Callout */}
-        <Html
-          position={[0, 2.2, 0]}
-          center
-          distanceFactor={12}
-          className="pointer-events-auto select-none"
-        >
-          <div className="font-mono text-[10px] bg-[#05070B]/95 border border-[#00F0FF] p-2 rounded text-cyan-300 shadow-[0_0_20px_rgba(0,240,255,0.4)] backdrop-blur-md whitespace-nowrap text-center">
-            <div className="font-bold text-white text-[11px] mb-0.5 flex items-center justify-center space-x-1.5">
-              <span className="w-2 h-2 rounded-full bg-[#00F0FF] animate-ping" />
-              <span>PRIMARY TARGET: JOHN KLEIN</span>
-            </div>
-            <div className="text-[9px] text-slate-400 mb-1">
-              Yellowknife Bay Mudstone Formation
-            </div>
-            <div className="text-[10px] text-amber-300 font-bold mb-1.5">
-              DISTANCE: {distanceToTarget.toFixed(1)} m {isInLaserRange ? '(IN RANGE)' : '(DRIVE CLOSER)'}
-            </div>
-
-            {/* Prompt to engage ChemCam telescope when in range */}
-            {isInLaserRange && missionPhase === 'EXPLORING' && (
-              <button
-                onClick={() => {
-                  setCameraMode('CHEMCAM_TELESCOPE');
-                  setMissionPhase('LASER_TARGETING');
-                }}
-                className="w-full py-1 px-2 rounded bg-cyan-950 border border-cyan-400 text-white font-bold text-[10px] hover:bg-cyan-800 transition animate-pulse"
-              >
-                CLICK TO ENGAGE CHEMCAM TELESCOPE
-              </button>
+        {/* Spatial Discovery Beacon Callout - Only shown during Exploration & outside ChemCam Telescope */}
+        {showTargetBeacon && (
+          <Html
+            position={[0, 2.2, 0]}
+            center
+            occlude
+            className="pointer-events-auto select-none"
+          >
+            {!isInLaserRange ? (
+              <div className="font-mono text-[10px] bg-[#05070B]/90 border border-cyan-400/80 px-3 py-1.5 rounded shadow-[0_0_15px_rgba(0,240,255,0.35)] backdrop-blur-md whitespace-nowrap text-center">
+                <div className="font-bold text-white text-[10px] mb-0.5 flex items-center justify-center space-x-1.5">
+                  <span className="w-2 h-2 rounded-full bg-[#00F0FF] animate-ping" />
+                  <span>PRIMARY TARGET: JOHN KLEIN</span>
+                </div>
+                <div className="text-[9px] text-slate-400 mb-0.5">
+                  Yellowknife Bay Mudstone Formation
+                </div>
+                <div className="text-[9.5px] text-amber-300 font-bold">
+                  DISTANCE: {distanceToTarget.toFixed(1)} m (DRIVE CLOSER)
+                </div>
+              </div>
+            ) : (
+              <div className="font-mono text-[10px] bg-[#05070B]/95 border-2 border-emerald-400 px-3 py-2 rounded shadow-[0_0_20px_rgba(16,185,129,0.5)] backdrop-blur-md whitespace-nowrap text-center animate-pulse">
+                <div className="font-bold text-white text-[10px] mb-0.5 flex items-center justify-center space-x-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                  <span>PRIMARY TARGET: JOHN KLEIN</span>
+                </div>
+                <div className="text-[9.5px] text-emerald-400 font-bold mb-1.5">
+                  TARGET IN LASER RANGE ({distanceToTarget.toFixed(1)}m)
+                </div>
+                <button
+                  onClick={() => {
+                    setCameraMode('CHEMCAM_TELESCOPE');
+                    setMissionPhase('LASER_TARGETING');
+                  }}
+                  className="w-full py-1 px-2.5 rounded bg-emerald-950 border border-emerald-400 text-white font-bold text-[9.5px] hover:bg-emerald-800 transition shadow-sm"
+                >
+                  [SPACE] OR CLICK TO TARGET
+                </button>
+              </div>
             )}
-          </div>
-        </Html>
+          </Html>
+        )}
       </group>
     </group>
   );

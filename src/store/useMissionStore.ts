@@ -66,6 +66,7 @@ export interface MissionState {
   setAntennaAngles: (elev: number, azim: number) => void;
   setCameraMode: (mode: CameraMode) => void;
   cycleCameraMode: () => void;
+  exitTelescope: () => void;
   setEraShaderOverride: (era: EraShader) => void;
   toggleCodex: () => void;
   toggleOpticalFeed: () => void;
@@ -287,13 +288,20 @@ export const useMissionStore = create<MissionState>((set, get) => ({
 
   cycleCameraMode: () => {
     const { cameraMode } = get();
+    // [C] strictly toggles between the two vehicle driving POV viewpoints:
     const nextMode: CameraMode =
-      cameraMode === 'THIRD_PERSON_DRONE'
-        ? 'FREE_ORBIT'
-        : cameraMode === 'FREE_ORBIT'
-        ? 'CHEMCAM_TELESCOPE'
-        : 'THIRD_PERSON_DRONE';
+      cameraMode === 'THIRD_PERSON_DRONE' ? 'FREE_ORBIT' : 'THIRD_PERSON_DRONE';
     set({ cameraMode: nextMode });
+  },
+
+  exitTelescope: () => {
+    const { cameraMode, missionPhase } = get();
+    if (cameraMode === 'CHEMCAM_TELESCOPE') {
+      set({ cameraMode: 'THIRD_PERSON_DRONE' });
+    }
+    if (missionPhase === 'LASER_TARGETING') {
+      set({ missionPhase: 'EXPLORING' });
+    }
   },
 
   setEraShaderOverride: (era: EraShader) => {

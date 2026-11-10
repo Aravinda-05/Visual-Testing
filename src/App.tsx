@@ -59,10 +59,19 @@ export const App: React.FC = () => {
         setEraShaderOverride('2012_MSL_DEFAULT');
       }
 
-      // Camera toggle [C]: Follow (3rd Person) -> Free Roam Orbit -> ChemCam Zoom
+      // Camera POV toggle [C]: Follow (3rd Person) <-> Free Roam Orbit
       if (key === 'KeyC') {
         useMissionStore.getState().cycleCameraMode();
         soundEngine.playUiBlip();
+      }
+
+      // Exit Laser Telescope [ESC] or [Q]
+      if (key === 'Escape' || key === 'KeyQ') {
+        const { cameraMode } = useMissionStore.getState();
+        if (cameraMode === 'CHEMCAM_TELESCOPE') {
+          useMissionStore.getState().exitTelescope();
+          soundEngine.playUiBlip();
+        }
       }
 
       // Toggle Live Optical Telemetry Feed [E]
