@@ -52,19 +52,6 @@ export const MissionHUD: React.FC = () => {
   const setMissionPhase = useMissionStore((s) => s.setMissionPhase);
   const fireChemCamPulse = useMissionStore((s) => s.fireChemCamPulse);
 
-  // Keyboard listener: 'C' key toggles camera POV (3rd Person Drone, Free Roam Orbit, ChemCam Zoom)
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'c' || e.key === 'C') {
-        if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-        cycleCameraMode();
-        soundEngine.playUiBlip();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [cycleCameraMode]);
-
   // Oscilloscope canvas reference
   const oscCanvasRef = useRef<HTMLCanvasElement>(null);
   const oscHistoryRef = useRef<{ temp: number; cap: number; wheel: number }[]>([]);

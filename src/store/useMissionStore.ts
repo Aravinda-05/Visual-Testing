@@ -135,7 +135,7 @@ export const useMissionStore = create<MissionState>((set, get) => ({
     // Driving uphill or high speed adds slight heat dissipation load
     let newTemp = mmrtgCoreTempC;
     if (!mmrtgCooldown && Math.abs(speed) > 0.5) {
-      newTemp = Math.min(235, mmrtgCoreTempC + Math.abs(speed) * 0.012);
+      newTemp = Math.min(235, mmrtgCoreTempC + Math.abs(speed) * 0.0015);
     } else {
       // Natural passive radiator cooling back toward 165°C
       newTemp = Math.max(165, mmrtgCoreTempC - 0.04);

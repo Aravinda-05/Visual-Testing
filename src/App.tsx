@@ -4,6 +4,7 @@ import { useMissionStore } from './store/useMissionStore';
 import { RoverScene } from './components/canvas/RoverScene';
 import { MissionHUD } from './components/MissionHUD';
 import { DriveControls } from './components/CuriosityRover';
+import { soundEngine } from './utils/soundEngine';
 
 export const App: React.FC = () => {
   const setEraShaderOverride = useMissionStore((s) => s.setEraShaderOverride);
@@ -57,10 +58,10 @@ export const App: React.FC = () => {
         setEraShaderOverride('2012_MSL_DEFAULT');
       }
 
-      // Camera toggle [C]
+      // Camera toggle [C]: Follow (3rd Person) -> Free Roam Orbit -> ChemCam Zoom
       if (key === 'KeyC') {
-        const currentMode = useMissionStore.getState().cameraMode;
-        setCameraMode(currentMode === 'THIRD_PERSON_DRONE' ? 'CHEMCAM_TELESCOPE' : 'THIRD_PERSON_DRONE');
+        useMissionStore.getState().cycleCameraMode();
+        soundEngine.playUiBlip();
       }
 
       // Context action [E]: engage telescope when in range

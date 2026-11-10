@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useEffect } from 'react';
 import * as THREE from 'three';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, Grid } from '@react-three/drei';
@@ -37,8 +37,22 @@ function CameraDirector({ controlsRef }: CameraDirectorProps) {
   // Smooth camera yaw angle tracker (shortest-arc wrapping prevents snapping on turns)
   const cameraYaw = useRef<number | null>(null);
   const camY = useRef<number | null>(null);
+  const followDistance = useRef<number>(7.5);
   const prevRoverPos = useRef(new THREE.Vector3());
   const prevMode = useRef<CameraMode>(cameraMode);
+
+  // Mouse wheel scroll to zoom in / out
+  useEffect(() => {
+    const handleWheel = (e: WheelEvent) => {
+      // In 3rd person follow mode, wheel scroll dynamically zooms follow distance
+      if (useMissionStore.getState().cameraMode === 'THIRD_PERSON_DRONE') {
+        const delta = e.deltaY * 0.008;
+        followDistance.current = THREE.MathUtils.clamp(followDistance.current + delta, 3.2, 24.0);
+      }
+    };
+    window.addEventListener('wheel', handleWheel, { passive: true });
+    return () => window.removeEventListener('wheel', handleWheel);
+  }, []);
 
   useFrame((state, delta) => {
     const dt = Math.min(delta, 0.08);
@@ -72,19 +86,18 @@ function CameraDirector({ controlsRef }: CameraDirectorProps) {
         }
       } else if (cameraMode === 'THIRD_PERSON_DRONE') {
         // Transitioning back to THIRD_PERSON_DRONE:
-        // Match current camera angle so there is no jarring snap
         const dx = rPos.x - camera.position.x;
         const dz = rPos.z - camera.position.z;
         cameraYaw.current = Math.atan2(dx, dz);
         camY.current = camera.position.y;
+        followDistance.current = THREE.MathUtils.clamp(Math.hypot(dx, dz), 3.2, 24.0);
       }
       prevMode.current = cameraMode;
     }
 
     if (cameraMode === 'FREE_ORBIT') {
       // FREE ROAM ORBIT MODE:
-      // OrbitControls allows the user to click & drag to orbit and scroll to zoom.
-      // Simultaneously translate camera along with rover movement so Curiosity remains in frame if driven
+      // Translate camera along with rover movement so Curiosity remains in frame if driven
       const deltaX = rPos.x - prevRoverPos.current.x;
       const deltaY = rPos.y - prevRoverPos.current.y;
       const deltaZ = rPos.z - prevRoverPos.current.z;
@@ -118,7 +131,7 @@ function CameraDirector({ controlsRef }: CameraDirectorProps) {
       const mastZ = rPos.z + 0.85;
 
       const mastPos = new THREE.Vector3(mastX, mastY, mastZ);
-      camera.position.lerp(mastPos, 6.0 * dt);
+      camera.position.lerp(mastPos, 8.0 * dt);
 
       // Narrow field of view zoom
       if ((camera as THREE.PerspectiveCamera).isPerspectiveCamera) {
@@ -135,22 +148,22 @@ function CameraDirector({ controlsRef }: CameraDirectorProps) {
       if (diff < -Math.PI) diff += Math.PI * 2;
       if (diff > Math.PI) diff -= Math.PI * 2;
 
-      cameraYaw.current += diff * Math.min(1.0, 4.8 * dt);
+      cameraYaw.current += diff * Math.min(1.0, 5.0 * dt);
 
       // 2. Direct translation anchoring:
       // The camera's horizontal offset is rigidly tied to the rover's instantaneous translation.
       // Zero distance stretching while driving, zero rubberband snapback!
-      const chaseDistance = 7.0;
-      const chaseHeight = 2.8;
+      const dist = followDistance.current;
+      const chaseHeight = Math.max(1.8, dist * 0.40);
 
       const camFwdX = Math.sin(cameraYaw.current);
       const camFwdZ = Math.cos(cameraYaw.current);
 
-      const targetCamX = rPos.x - camFwdX * chaseDistance;
-      const targetCamZ = rPos.z - camFwdZ * chaseDistance;
+      const targetCamX = rPos.x - camFwdX * dist;
+      const targetCamZ = rPos.z - camFwdZ * dist;
 
       if (camY.current === null) camY.current = rPos.y + chaseHeight;
-      camY.current = THREE.MathUtils.damp(camY.current, rPos.y + chaseHeight, 9.0, dt);
+      camY.current = THREE.MathUtils.damp(camY.current, rPos.y + chaseHeight, 10.0, dt);
 
       camera.position.set(targetCamX, camY.current, targetCamZ);
 
@@ -175,9 +188,6 @@ interface RoverSceneProps {
 
 export const RoverScene: React.FC<RoverSceneProps> = ({ driveControlsRef }) => {
   const controlsRef = useRef<OrbitControlsImpl>(null);
-  const roverPos = useMissionStore((s) => s.roverPos);
-  const roverSpeed = useMissionStore((s) => s.roverSpeed);
-  const roverRotation = useMissionStore((s) => s.roverRotation);
   const eraShader = useMissionStore((s) => s.eraShaderOverride);
   const cameraMode = useMissionStore((s) => s.cameraMode);
 
@@ -207,8 +217,7 @@ export const RoverScene: React.FC<RoverSceneProps> = ({ driveControlsRef }) => {
           minDistance={2.5}
           maxDistance={85}
           maxPolarAngle={Math.PI / 2 - 0.05}
-          enableDamping={true}
-          dampingFactor={0.08}
+          enableDamping={false}
         />
 
         {/* Dynamic Camera Director */}
@@ -224,7 +233,7 @@ export const RoverScene: React.FC<RoverSceneProps> = ({ driveControlsRef }) => {
         <CuriosityRover controlsRef={driveControlsRef} />
 
         {/* 3. Regolith Dust Particle Trail behind wheels */}
-        <DustTrail roverPos={roverPos} speed={roverSpeed} yaw={roverRotation} />
+        <DustTrail />
 
         {/* 4. ChemCam 1064nm Laser, Plasma Sparks & Soul-Transfer Ascending Beam */}
         <ScienceMechanics />

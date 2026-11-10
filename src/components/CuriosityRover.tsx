@@ -303,6 +303,7 @@ export const CuriosityRover: React.FC<CuriosityRoverProps> = ({ controlsRef }) =
   const lastHazardCheck = useRef(0);
   const lastResetCounter = useRef(resetCounter);
   const isFirstFrame = useRef(true);
+  const lastStoreUpdate = useRef(0);
 
   useFrame((_, delta) => {
     const dt = Math.min(delta, 0.08);
@@ -345,9 +346,10 @@ export const CuriosityRover: React.FC<CuriosityRoverProps> = ({ controlsRef }) =
     steerAngle.current = THREE.MathUtils.damp(steerAngle.current, targetSteer * 0.52, 6.0, dt);
 
     // 2. Throttle & Top Speed (Puncture Speed Penalty)
-    const integritySpeedFactor = Math.max(0.45, wheelIntegrityPct / 100.0);
-    const maxForward = (input.boost ? 9.5 : 5.5) * integritySpeedFactor;
-    const maxReverse = -3.2 * integritySpeedFactor;
+    const integritySpeedFactor = Math.max(0.65, wheelIntegrityPct / 100.0);
+    // Standard cruise speed: 12.0 m/s (~43 km/h). Boost speed (Shift): 22.0 m/s (~80 km/h)
+    const maxForward = (input.boost ? 22.0 : 12.0) * integritySpeedFactor;
+    const maxReverse = -6.5 * integritySpeedFactor;
 
     let throttle = 0;
     if (input.forward) throttle += 1;
@@ -359,22 +361,22 @@ export const CuriosityRover: React.FC<CuriosityRoverProps> = ({ controlsRef }) =
     }
 
     if (input.brake) {
-      speed.current = THREE.MathUtils.damp(speed.current, 0, 15.0, dt);
+      speed.current = THREE.MathUtils.damp(speed.current, 0, 20.0, dt);
     } else if (throttle > 0) {
-      speed.current = THREE.MathUtils.damp(speed.current, maxForward, 7.5, dt);
+      speed.current = THREE.MathUtils.damp(speed.current, maxForward, 10.0, dt);
     } else if (throttle < 0) {
-      speed.current = THREE.MathUtils.damp(speed.current, maxReverse, 7.5, dt);
+      speed.current = THREE.MathUtils.damp(speed.current, maxReverse, 10.0, dt);
     } else {
-      speed.current = THREE.MathUtils.damp(speed.current, 0, 4.2, dt);
+      speed.current = THREE.MathUtils.damp(speed.current, 0, 6.0, dt);
     }
 
     // 3. Turning Yaw
     const isMoving = Math.abs(speed.current) > 0.1;
     if (isMoving) {
-      yaw.current += steerAngle.current * 1.45 * Math.sign(speed.current) * dt;
+      yaw.current += steerAngle.current * 2.2 * Math.sign(speed.current) * dt;
     } else if (targetSteer !== 0) {
       // Stationary pivot turn
-      yaw.current += targetSteer * 1.0 * dt;
+      yaw.current += targetSteer * 1.8 * dt;
     }
 
     // 4. Position Translation
@@ -438,10 +440,16 @@ export const CuriosityRover: React.FC<CuriosityRoverProps> = ({ controlsRef }) =
       pos.current.y = THREE.MathUtils.damp(pos.current.y, targetY, 15.0, dt);
     }
 
-    // Update 3D Object transform
+    // Update 3D Object transform and attach live kinematic properties for 3D elements
     if (roverGroupRef.current) {
       roverGroupRef.current.position.set(pos.current.x, pos.current.y, pos.current.z);
       roverGroupRef.current.rotation.set(pitch.current, yaw.current, roll.current, 'YXZ');
+      roverGroupRef.current.userData = {
+        speed: speed.current,
+        yaw: yaw.current,
+        pitch: pitch.current,
+        roll: roll.current,
+      };
     }
 
     // 6. Sound Synthesis
@@ -467,15 +475,19 @@ export const CuriosityRover: React.FC<CuriosityRoverProps> = ({ controlsRef }) =
     // Distance to John Klein mudstone target
     const distToTarget = Math.hypot(pos.current.x - JOHN_KLEIN_POS[0], pos.current.z - JOHN_KLEIN_POS[1]);
 
-    // Push to Zustand store
-    setRoverTransform(
-      [pos.current.x, pos.current.y, pos.current.z],
-      yaw.current,
-      pitch.current,
-      roll.current,
-      speed.current,
-      distToTarget
-    );
+    // Push to Zustand store (throttled to 10Hz to eliminate React re-render thrashing!)
+    const perfNow = performance.now();
+    if (perfNow - lastStoreUpdate.current > 100) {
+      lastStoreUpdate.current = perfNow;
+      setRoverTransform(
+        [pos.current.x, pos.current.y, pos.current.z],
+        yaw.current,
+        pitch.current,
+        roll.current,
+        speed.current,
+        distToTarget
+      );
+    }
   });
 
   return (
