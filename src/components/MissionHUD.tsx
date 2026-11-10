@@ -44,12 +44,26 @@ export const MissionHUD: React.FC = () => {
 
   const startMission = useMissionStore((s) => s.startMission);
   const setCameraMode = useMissionStore((s) => s.setCameraMode);
+  const cycleCameraMode = useMissionStore((s) => s.cycleCameraMode);
   const setEraShaderOverride = useMissionStore((s) => s.setEraShaderOverride);
   const setAntennaAngles = useMissionStore((s) => s.setAntennaAngles);
   const toggleCodex = useMissionStore((s) => s.toggleCodex);
   const resetMission = useMissionStore((s) => s.resetMission);
   const setMissionPhase = useMissionStore((s) => s.setMissionPhase);
   const fireChemCamPulse = useMissionStore((s) => s.fireChemCamPulse);
+
+  // Keyboard listener: 'C' key toggles camera POV (3rd Person Drone, Free Roam Orbit, ChemCam Zoom)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'c' || e.key === 'C') {
+        if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+        cycleCameraMode();
+        soundEngine.playUiBlip();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [cycleCameraMode]);
 
   // Oscilloscope canvas reference
   const oscCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -192,7 +206,24 @@ export const MissionHUD: React.FC = () => {
           </div>
 
           <div className="flex items-center justify-between text-[9px] text-slate-400">
-            <span>[C] CAMERA: <strong className="text-cyan-200">{cameraMode}</strong></span>
+            <button
+              onClick={() => {
+                cycleCameraMode();
+                soundEngine.playUiBlip();
+              }}
+              className="flex items-center gap-1.5 hover:text-white transition-colors"
+              title="Click or press [C] to cycle Camera POV: 3rd Person Follow -> Free Roam Orbit -> ChemCam Zoom"
+            >
+              <Camera className="w-3.5 h-3.5 text-cyan-400" />
+              <span>[C]</span>
+              <strong className="text-cyan-200">
+                {cameraMode === 'THIRD_PERSON_DRONE'
+                  ? 'FOLLOW (3RD)'
+                  : cameraMode === 'FREE_ORBIT'
+                  ? 'FREE ROAM'
+                  : 'CHEMCAM ZOOM'}
+              </strong>
+            </button>
             <button
               onClick={toggleCodex}
               className="flex items-center gap-1.5 hover:text-white transition-colors"
@@ -452,7 +483,7 @@ export const MissionHUD: React.FC = () => {
             <div>
               <div className="text-cyan-300 font-bold mb-0.5">CONTROLS:</div>
               <div className="text-slate-400">
-                [WASD / Arrows] Drive • [Shift] Boost • [Space] ChemCam • [R] Reset
+                [WASD / Arrows] Drive • [C] Camera POV • [Shift] Boost • [Space] ChemCam • [R] Reset
               </div>
             </div>
             <button

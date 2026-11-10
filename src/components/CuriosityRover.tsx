@@ -42,8 +42,21 @@ function GLTFCuriosityModel() {
       const center = new THREE.Vector3();
       bbox.getCenter(center);
 
+      // Measure bottom-most contact point across wheel assemblies
+      const wheelNames = ['wheel_01_L', 'wheel_02_L', 'wheel_03_L', 'wheel_01_R', 'wheel_02_R', 'wheel_03_R'];
+      let lowestWheelY = Infinity;
+      wheelNames.forEach((name) => {
+        const w = clone.getObjectByName(name);
+        if (w) {
+          const wBox = new THREE.Box3().setFromObject(w);
+          if (wBox.min.y < lowestWheelY) lowestWheelY = wBox.min.y;
+        }
+      });
+
+      const groundYOffset = isFinite(lowestWheelY) ? lowestWheelY : bbox.min.y;
+
       clone.position.x = -center.x;
-      clone.position.y = -bbox.min.y;
+      clone.position.y = -groundYOffset;
       clone.position.z = -center.z;
     }
 
@@ -361,25 +374,55 @@ export const CuriosityRover: React.FC<CuriosityRoverProps> = ({ controlsRef }) =
     pos.current.x = THREE.MathUtils.clamp(pos.current.x, -88, 88);
     pos.current.z = THREE.MathUtils.clamp(pos.current.z, -88, 88);
 
-    // 5. Terrain Elevation & 4-Point Suspension Probes
+    // 5. Terrain Elevation & 4-Corner Wheel Suspension Probes
     const groundY = getTerrainHeight(pos.current.x, pos.current.z);
-    pos.current.y = groundY;
 
-    const wheelbase = 1.35;
-    const trackwidth = 1.45;
+    const halfWheelbase = 0.95;
+    const halfTrackwidth = 0.82;
     const rightX = Math.cos(yaw.current);
     const rightZ = -Math.sin(yaw.current);
 
-    const yFront = getTerrainHeight(pos.current.x + fwdX * wheelbase, pos.current.z + fwdZ * wheelbase);
-    const yRear = getTerrainHeight(pos.current.x - fwdX * wheelbase, pos.current.z - fwdZ * wheelbase);
-    const yLeft = getTerrainHeight(pos.current.x - rightX * trackwidth, pos.current.z - rightZ * trackwidth);
-    const yRight = getTerrainHeight(pos.current.x + rightX * trackwidth, pos.current.z + rightZ * trackwidth);
+    // 4 Corner wheel elevation probes
+    const flX = pos.current.x + fwdX * halfWheelbase - rightX * halfTrackwidth;
+    const flZ = pos.current.z + fwdZ * halfWheelbase - rightZ * halfTrackwidth;
+    const yFL = getTerrainHeight(flX, flZ);
 
-    const targetPitch = Math.atan2(yFront - yRear, wheelbase * 2);
-    const targetRoll = Math.atan2(yRight - yLeft, trackwidth * 2);
+    const frX = pos.current.x + fwdX * halfWheelbase + rightX * halfTrackwidth;
+    const frZ = pos.current.z + fwdZ * halfWheelbase + rightZ * halfTrackwidth;
+    const yFR = getTerrainHeight(frX, frZ);
+
+    const rlX = pos.current.x - fwdX * halfWheelbase - rightX * halfTrackwidth;
+    const rlZ = pos.current.z - fwdZ * halfWheelbase - rightZ * halfTrackwidth;
+    const yRL = getTerrainHeight(rlX, rlZ);
+
+    const rrX = pos.current.x - fwdX * halfWheelbase + rightX * halfTrackwidth;
+    const rrZ = pos.current.z - fwdZ * halfWheelbase + rightZ * halfTrackwidth;
+    const yRR = getTerrainHeight(rrX, rrZ);
+
+    // Front/Rear and Left/Right axle centers
+    const yFront = (yFL + yFR) * 0.5;
+    const yRear = (yRL + yRR) * 0.5;
+    const yLeft = (yFL + yRL) * 0.5;
+    const yRight = (yFR + yRR) * 0.5;
+
+    const targetPitch = Math.atan2(yFront - yRear, halfWheelbase * 2);
+    const targetRoll = Math.atan2(yRight - yLeft, halfTrackwidth * 2);
 
     pitch.current = THREE.MathUtils.damp(pitch.current, targetPitch, 8.0, dt);
     roll.current = THREE.MathUtils.damp(roll.current, targetRoll, 8.0, dt);
+
+    // Dynamic tilt compensation: when the chassis pitches or rolls around its center,
+    // the perimeter wheel contact points rotate downward by:
+    const pitchDrop = Math.abs(Math.sin(pitch.current)) * halfWheelbase;
+    const rollDrop = Math.abs(Math.sin(roll.current)) * halfTrackwidth;
+    const tiltDrop = pitchDrop + rollDrop;
+
+    // Contact terrain height under the highest wheel
+    const maxContact = Math.max(yFL, yFR, yRL, yRR, groundY);
+    // +0.06m positive clearance so 50cm aluminum tires sit cleanly ON TOP of the regolith
+    const targetY = maxContact + tiltDrop + 0.06;
+
+    pos.current.y = THREE.MathUtils.damp(pos.current.y, targetY, 14.0, dt);
 
     // Update 3D Object transform
     if (roverGroupRef.current) {

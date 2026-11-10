@@ -36,11 +36,34 @@ function CameraDirector({ controlsRef }: CameraDirectorProps) {
     )
   );
 
+  // Smooth camera yaw angle tracker (shortest-arc wrapping prevents snapping on turns)
+  const cameraYaw = useRef(roverRotation);
+  const lookTargetRef = useRef(new THREE.Vector3(0, 1.2, 0));
+  const initialized = useRef(false);
+
   useFrame((_, delta) => {
     const dt = Math.min(delta, 0.08);
 
     // During Soul-Transfer, camera ascent is handled by ScienceMechanics
     if (missionPhase === 'SOUL_TRANSFER_COMPLETE') return;
+
+    if (cameraMode === 'FREE_ORBIT') {
+      // In Free Roam Orbit mode, OrbitControls has full control of camera position
+      // Smoothly guide OrbitControls target to follow the rover center
+      if (controlsRef.current) {
+        const roverCenter = new THREE.Vector3(roverPos[0], roverPos[1] + 0.9, roverPos[2]);
+        controlsRef.current.target.lerp(roverCenter, Math.min(1.0, 12.0 * dt));
+        controlsRef.current.update();
+      }
+
+      // Restore wide FOV
+      if ((camera as THREE.PerspectiveCamera).isPerspectiveCamera) {
+        const pCam = camera as THREE.PerspectiveCamera;
+        pCam.fov = THREE.MathUtils.damp(pCam.fov, 45, 5.0, dt);
+        pCam.updateProjectionMatrix();
+      }
+      return;
+    }
 
     if (cameraMode === 'CHEMCAM_TELESCOPE') {
       // Position camera directly at Curiosity's Remote Sensing Mast looking down at the rock
@@ -60,24 +83,42 @@ function CameraDirector({ controlsRef }: CameraDirectorProps) {
 
       camera.lookAt(targetSpot.current);
     } else {
-      // Third-Person Drone Chase Cam
-      // Calculate target camera offset trailing behind the rover
-      const chaseDistance = 7.5;
-      const chaseHeight = 3.6;
+      // Third-Person Drone Chase Cam (Follow mode)
+      // 1. Smoothly interpolate camera yaw behind the rover (circular shortest-arc math)
+      let diff = (roverRotation - cameraYaw.current) % (Math.PI * 2);
+      if (diff < -Math.PI) diff += Math.PI * 2;
+      if (diff > Math.PI) diff -= Math.PI * 2;
 
-      const fwdX = Math.sin(roverRotation);
-      const fwdZ = Math.cos(roverRotation);
+      // On first frame, snap directly behind rover
+      if (!initialized.current) {
+        cameraYaw.current = roverRotation;
+        lookTargetRef.current.set(roverPos[0], roverPos[1] + 1.05, roverPos[2]);
+        initialized.current = true;
+      } else {
+        cameraYaw.current += diff * Math.min(1.0, 5.5 * dt);
+      }
 
-      const targetCamX = roverPos[0] - fwdX * chaseDistance;
-      const targetCamZ = roverPos[2] - fwdZ * chaseDistance;
+      // 2. Firm follow distance behind rover orientation
+      const chaseDistance = 7.0;
+      const chaseHeight = 3.2;
+
+      const camFwdX = Math.sin(cameraYaw.current);
+      const camFwdZ = Math.cos(cameraYaw.current);
+
+      const targetCamX = roverPos[0] - camFwdX * chaseDistance;
+      const targetCamZ = roverPos[2] - camFwdZ * chaseDistance;
       const targetCamY = roverPos[1] + chaseHeight;
 
       const targetCamPos = new THREE.Vector3(targetCamX, targetCamY, targetCamZ);
-      camera.position.lerp(targetCamPos, 4.5 * dt);
 
-      // Look slightly above the rover's center of mass
-      const lookTarget = new THREE.Vector3(roverPos[0], roverPos[1] + 1.2, roverPos[2]);
-      camera.lookAt(lookTarget);
+      // High-responsiveness follow (16.0 * dt) rigidly maintains 7.0m follow distance while driving!
+      // Completely eliminates the rubberband lag where rover moved away before snapping back!
+      camera.position.lerp(targetCamPos, Math.min(1.0, 16.0 * dt));
+
+      // 3. Smooth Look Target directly at rover's center of mass
+      const lookTarget = new THREE.Vector3(roverPos[0], roverPos[1] + 1.05, roverPos[2]);
+      lookTargetRef.current.lerp(lookTarget, Math.min(1.0, 16.0 * dt));
+      camera.lookAt(lookTargetRef.current);
 
       // Restore nominal wide FOV
       if ((camera as THREE.PerspectiveCamera).isPerspectiveCamera) {
@@ -122,13 +163,15 @@ export const RoverScene: React.FC<RoverSceneProps> = ({ driveControlsRef }) => {
         {/* Performance Monitor */}
         <Perf position="top-left" />
 
-        {/* Orbit Controls (Available when cameraMode !== CHEMCAM_TELESCOPE) */}
+        {/* Orbit Controls (Available in FREE_ORBIT mode) */}
         <OrbitControls
           ref={controlsRef}
-          enabled={false} // CameraDirector smoothly pilots the camera
-          minDistance={3.5}
-          maxDistance={70}
+          enabled={cameraMode === 'FREE_ORBIT'}
+          minDistance={2.5}
+          maxDistance={85}
           maxPolarAngle={Math.PI / 2 - 0.05}
+          enableDamping={true}
+          dampingFactor={0.08}
         />
 
         {/* Dynamic Camera Director */}

@@ -1,5 +1,8 @@
 export interface CuriosityHotspot {
   id: string;
+  nodeName: string;
+  fallbackNodeNames?: string[];
+  heightOffset?: number;
   title: string;
   shortName: string;
   component: string;
@@ -12,10 +15,13 @@ export interface CuriosityHotspot {
 export const CURIOSITY_HOTSPOTS: CuriosityHotspot[] = [
   {
     id: 'mmrtg',
+    nodeName: 'RTG',
+    fallbackNodeNames: ['radiators', 'SAM'],
+    heightOffset: 0.12,
     title: 'MMRTG NUCLEAR POWER SOURCE',
     shortName: 'MMRTG NUCLEAR',
     component: 'Multi-Mission Radioisotope Thermoelectric Generator',
-    pos: [0.0, 1.35, -1.6],
+    pos: [0.002, 0.95, -1.28],
     specBadge: '110W ELECTRICAL | 4.8 KG PU-238',
     explanation:
       'Curiosity abandoned solar panels because Martian dust storms starved Spirit and Opportunity of sunlight. Its MMRTG converts the radioactive decay heat of Plutonium-238 into continuous electricity, running 24/7 through freezing polar winters and global dust storms.',
@@ -24,10 +30,13 @@ export const CURIOSITY_HOTSPOTS: CuriosityHotspot[] = [
   },
   {
     id: 'chemcam',
+    nodeName: 'ChemCam',
+    fallbackNodeNames: ['mast_03.001', 'MastCam', 'mast_02.001'],
+    heightOffset: 0.08,
     title: 'CHEMCAM 7m PULSED LASER',
     shortName: 'CHEMCAM LASER',
     component: 'Laser-Induced Breakdown Spectrometer (LIBS)',
-    pos: [0.42, 2.65, 0.92],
+    pos: [-0.408, 1.48, 0.18],
     specBadge: 'RANGE: 7.0M | 1064NM INFRARED',
     explanation:
       'Curiosity fires a powerful million-watt infrared laser from its mast to vaporize pinhead-sized spots of rock into glowing plasma 7 meters away. The onboard telescope analyzes the light emission spectrum to identify minerals without needing to drive up and touch the rock.',
@@ -36,10 +45,13 @@ export const CURIOSITY_HOTSPOTS: CuriosityHotspot[] = [
   },
   {
     id: 'wheels',
+    nodeName: 'wheel_01_L',
+    fallbackNodeNames: ['suspension_steer_F_L', 'suspension_arm_F_L'],
+    heightOffset: 0.10,
     title: '50cm WHEELS & SECRET MORSE CODE',
     shortName: '0.75mm AL WHEELS',
     component: 'Machined Aluminum Grousers & Visual Odometry Treads',
-    pos: [-1.4, 0.65, 1.15],
+    pos: [0.807, 0.32, 0.46],
     specBadge: '50CM DIAMETER | 0.75MM SKIN',
     explanation:
       'Each 50cm wheel was milled from a solid cylinder of aircraft-grade aluminum with a skin only 0.75mm thin to minimize flight weight. Holes in the treads leave tracks in the loose sand so navigation cameras can measure drive distance and wheel slippage accurately.',
@@ -48,10 +60,13 @@ export const CURIOSITY_HOTSPOTS: CuriosityHotspot[] = [
   },
   {
     id: 'rocker_bogie',
+    nodeName: 'suspension_arm_B_L',
+    fallbackNodeNames: ['suspension_axel_L', 'suspension_rod_L', 'suspension_arm_F_L'],
+    heightOffset: 0.08,
     title: 'ROCKER-BOGIE SUSPENSION',
     shortName: 'ROCKER-BOGIE',
     component: 'Springless Articulated Titanium Linkage',
-    pos: [1.35, 0.85, 0.1],
+    pos: [0.602, 0.65, -0.48],
     specBadge: 'MAX STEP: 75CM | ZERO SPRINGS',
     explanation:
       'Curiosity uses no mechanical springs or shock absorbers. An articulated rocker-bogie linkage connected through a central differential pivot keeps all six wheels firmly on the ground, allowing the rover to climb over rocks up to 75cm high without tipping over.',
@@ -60,10 +75,13 @@ export const CURIOSITY_HOTSPOTS: CuriosityHotspot[] = [
   },
   {
     id: 'robotic_arm',
+    nodeName: 'Drill',
+    fallbackNodeNames: ['arm_05_head.001', 'MAHLI', 'CHIMERA'],
+    heightOffset: 0.10,
     title: '2.3m ROBOTIC ARM & DRILL',
     shortName: 'ROBOTIC ARM & DRILL',
     component: '5-DoF Heavy Arm with 30kg Sensor Turret',
-    pos: [-0.55, 0.9, 2.15],
+    pos: [0.304, 1.50, 1.15],
     specBadge: '5-DoF | 30KG TURRET | 6.5CM DRILL',
     explanation:
       'Like a robotic field geologist, this 2.3-meter arm presses a rotary percussive drill, a dust removal wire brush, and MAHLI (a microscopic magnifier) against Martian rocks. It bores 6.5cm into ancient bedrock to deliver pristine stone powder to internal laboratories.',
@@ -72,10 +90,13 @@ export const CURIOSITY_HOTSPOTS: CuriosityHotspot[] = [
   },
   {
     id: 'hga',
+    nodeName: 'antenna_HG_03',
+    fallbackNodeNames: ['antenna_HG_01', 'antenna_HG_02_p'],
+    heightOffset: 0.10,
     title: 'HIGH-GAIN HEXAGON ANTENNA',
     shortName: 'HIGH-GAIN ANTENNA',
     component: 'Steerable Hexagonal X-Band Phased Transceiver',
-    pos: [-0.52, 1.45, -0.6],
+    pos: [0.002, 1.05, -0.54],
     specBadge: 'X-BAND (8 GHZ) | DUAL-AXIS GIMBAL',
     explanation:
       'This hexagonal dish antenna articulates across two axes to point directly at Earth\'s Deep Space Network dishes or relay orbiters (MRO / Odyssey) overhead. It transmits high-volume scientific spectra, color panoramas, and engineering telemetry across 150 million miles.',

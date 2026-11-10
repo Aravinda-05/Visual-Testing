@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
+import * as THREE from 'three';
+import { useFrame } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
 import { useMissionStore } from '../store/useMissionStore';
 import { CURIOSITY_HOTSPOTS, CuriosityHotspot } from '../data/curiosityHotspots';
@@ -37,6 +39,38 @@ const HotspotPin: React.FC<HotspotPinProps> = ({
   onSelect,
 }) => {
   const [isHovered, setIsHovered] = useState(false);
+  const pinRef = useRef<THREE.Group>(null);
+  const [pinPos, setPinPos] = useState<[number, number, number]>(spot.pos);
+
+  // Dynamically attach pin directly to the actual 3D hardware mesh node in curiosity.glb
+  useFrame(() => {
+    if (!pinRef.current?.parent) return;
+    const roverRoot = pinRef.current.parent;
+
+    let targetObj = roverRoot.getObjectByName(spot.nodeName);
+    if (!targetObj && spot.fallbackNodeNames) {
+      for (const name of spot.fallbackNodeNames) {
+        targetObj = roverRoot.getObjectByName(name);
+        if (targetObj) break;
+      }
+    }
+
+    if (targetObj) {
+      const worldPos = new THREE.Vector3();
+      targetObj.getWorldPosition(worldPos);
+      worldPos.y += spot.heightOffset || 0.10;
+
+      const localPos = roverRoot.worldToLocal(worldPos);
+
+      if (
+        Math.abs(localPos.x - pinPos[0]) > 0.005 ||
+        Math.abs(localPos.y - pinPos[1]) > 0.005 ||
+        Math.abs(localPos.z - pinPos[2]) > 0.005
+      ) {
+        setPinPos([localPos.x, localPos.y, localPos.z]);
+      }
+    }
+  });
 
   const handleMouseEnter = () => {
     setIsHovered(true);
@@ -54,60 +88,62 @@ const HotspotPin: React.FC<HotspotPinProps> = ({
   };
 
   return (
-    <Html
-      position={spot.pos}
-      center
-      distanceFactor={6}
-      occlude
-      className="pointer-events-auto select-none"
-    >
-      <div
-        id={`rover-hotspot-pin-${spot.id}`}
-        onClick={handleClick}
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
-        className={`group relative flex items-center h-6 cursor-pointer rounded-full font-mono transition-all duration-200 ease-out shadow-lg ${
-          isSelected
-            ? 'w-auto px-2.5 bg-amber-950/95 border-2 border-[#FFB800] text-amber-300 shadow-[0_0_18px_rgba(255,184,0,0.85)]'
-            : isHovered
-            ? 'w-auto px-2.5 bg-[#05070B]/95 border-2 border-cyan-300 text-cyan-200 shadow-[0_0_16px_rgba(0,240,255,0.8)]'
-            : 'w-6 justify-center bg-[#05070B]/90 border-2 border-[#00F0FF] text-[#00F0FF] shadow-[0_0_12px_rgba(0,240,255,0.65)]'
-        }`}
+    <group ref={pinRef}>
+      <Html
+        position={pinPos}
+        center
+        distanceFactor={6}
+        occlude
+        className="pointer-events-auto select-none"
       >
-        {/* Pulsing Radar Ripple Ring (Idle & Active) */}
-        {!isHovered && (
-          <span
-            className={`absolute -inset-1 rounded-full border animate-ping pointer-events-none ${
-              isSelected ? 'border-amber-400 opacity-80' : 'border-[#00F0FF] opacity-60'
-            }`}
-            style={{ animationDuration: isSelected ? '1.4s' : '2.2s' }}
-          />
-        )}
+        <div
+          id={`rover-hotspot-pin-${spot.id}`}
+          onClick={handleClick}
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
+          className={`group relative flex items-center h-6 cursor-pointer rounded-full font-mono transition-all duration-200 ease-out shadow-lg ${
+            isSelected
+              ? 'w-auto px-2.5 bg-amber-950/95 border-2 border-[#FFB800] text-amber-300 shadow-[0_0_18px_rgba(255,184,0,0.85)]'
+              : isHovered
+              ? 'w-auto px-2.5 bg-[#05070B]/95 border-2 border-cyan-300 text-cyan-200 shadow-[0_0_16px_rgba(0,240,255,0.8)]'
+              : 'w-6 justify-center bg-[#05070B]/90 border-2 border-[#00F0FF] text-[#00F0FF] shadow-[0_0_12px_rgba(0,240,255,0.65)]'
+          }`}
+        >
+          {/* Pulsing Radar Ripple Ring (Idle & Active) */}
+          {!isHovered && (
+            <span
+              className={`absolute -inset-1 rounded-full border animate-ping pointer-events-none ${
+                isSelected ? 'border-amber-400 opacity-80' : 'border-[#00F0FF] opacity-60'
+              }`}
+              style={{ animationDuration: isSelected ? '1.4s' : '2.2s' }}
+            />
+          )}
 
-        {/* Center Icon: Plus or Discovered Checkmark */}
-        <div className="flex items-center justify-center flex-shrink-0">
-          {isSelected ? (
-            <Plus className="w-3.5 h-3.5 rotate-45 text-[#FFB800] transition-transform duration-200" />
-          ) : isDiscovered && !isHovered ? (
-            <div className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_6px_#10B981]" />
-          ) : (
-            <Plus className="w-3.5 h-3.5 group-hover:rotate-45 transition-transform duration-200" />
+          {/* Center Icon: Plus or Discovered Checkmark */}
+          <div className="flex items-center justify-center flex-shrink-0">
+            {isSelected ? (
+              <Plus className="w-3.5 h-3.5 rotate-45 text-[#FFB800] transition-transform duration-200" />
+            ) : isDiscovered && !isHovered ? (
+              <div className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_6px_#10B981]" />
+            ) : (
+              <Plus className="w-3.5 h-3.5 group-hover:rotate-45 transition-transform duration-200" />
+            )}
+          </div>
+
+          {/* Gliding Title Pill on Hover or Active Selection */}
+          {(isHovered || isSelected) && (
+            <span className="ml-1.5 whitespace-nowrap text-[9px] font-bold tracking-wider uppercase drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] animate-fadeIn">
+              {spot.shortName}
+            </span>
+          )}
+
+          {/* Discovered Subtle Indicator Bead */}
+          {isDiscovered && !isSelected && (
+            <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-emerald-400 border border-black shadow-[0_0_4px_#10B981]" />
           )}
         </div>
-
-        {/* Gliding Title Pill on Hover or Active Selection */}
-        {(isHovered || isSelected) && (
-          <span className="ml-1.5 whitespace-nowrap text-[9px] font-bold tracking-wider uppercase drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] animate-fadeIn">
-            {spot.shortName}
-          </span>
-        )}
-
-        {/* Discovered Subtle Indicator Bead */}
-        {isDiscovered && !isSelected && (
-          <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-emerald-400 border border-black shadow-[0_0_4px_#10B981]" />
-        )}
-      </div>
-    </Html>
+      </Html>
+    </group>
   );
 };
 

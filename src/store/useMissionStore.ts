@@ -9,7 +9,7 @@ export type MissionPhase =
   | 'SOUL_TRANSFER_COMPLETE'
   | 'ORBITAL_WINDOW_MISSED';
 
-export type CameraMode = 'THIRD_PERSON_DRONE' | 'CHEMCAM_TELESCOPE';
+export type CameraMode = 'THIRD_PERSON_DRONE' | 'FREE_ORBIT' | 'CHEMCAM_TELESCOPE';
 export type EraShader = '1967_ANALOG' | '1997_RETRO_16BIT' | '2012_MSL_DEFAULT';
 
 export interface SpectralPeaks {
@@ -64,6 +64,7 @@ export interface MissionState {
   fireChemCamPulse: (isTargetHit?: boolean) => { hit: boolean; unlocked: boolean; overheated: boolean; isTest?: boolean };
   setAntennaAngles: (elev: number, azim: number) => void;
   setCameraMode: (mode: CameraMode) => void;
+  cycleCameraMode: () => void;
   setEraShaderOverride: (era: EraShader) => void;
   toggleCodex: () => void;
   resetMission: () => void;
@@ -278,6 +279,17 @@ export const useMissionStore = create<MissionState>((set, get) => ({
 
   setCameraMode: (mode: CameraMode) => {
     set({ cameraMode: mode });
+  },
+
+  cycleCameraMode: () => {
+    const { cameraMode } = get();
+    const nextMode: CameraMode =
+      cameraMode === 'THIRD_PERSON_DRONE'
+        ? 'FREE_ORBIT'
+        : cameraMode === 'FREE_ORBIT'
+        ? 'CHEMCAM_TELESCOPE'
+        : 'THIRD_PERSON_DRONE';
+    set({ cameraMode: nextMode });
   },
 
   setEraShaderOverride: (era: EraShader) => {
