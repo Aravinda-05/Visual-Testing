@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { useFrame } from '@react-three/fiber';
 import { useFBO } from '@react-three/drei';
@@ -265,11 +265,18 @@ export const MastCameraRenderer: React.FC = () => {
     return new THREE.Vector3(JOHN_KLEIN_POS[0] + 0.2, y, JOHN_KLEIN_POS[1] - 0.1);
   }, []);
 
+  const pipFrameCounter = useRef(0);
+
   useFrame((state) => {
     const { gl, scene, camera, size } = state;
     const time = state.clock.getElapsedTime();
     const canvas = gl.domElement;
     const canvasRect = canvas.getBoundingClientRect();
+    pipFrameCounter.current++;
+
+    // Locate Docked DOM Container early
+    const pipElement = document.getElementById('optical-sensor-pip-viewport');
+    const isPipActive = !!pipElement && canvasRect.width > 0 && canvasRect.height > 0;
 
     // 1. Calculate Remote Sensing Mast World Position
     const yaw = roverRotation;
@@ -313,19 +320,20 @@ export const MastCameraRenderer: React.FC = () => {
     mastCamera.rotation.z += roverRoll * 0.4;
     mastCamera.updateMatrixWorld();
 
-    // 3. Render Mast Camera into FBO
-    gl.setRenderTarget(fbo);
-    gl.clear();
-    gl.render(scene, mastCamera);
-    gl.setRenderTarget(null);
+    // 3. Render Mast Camera into FBO (Optimized: throttled to every 2nd frame when visible, 30fps feed saves 50% draw calls)
+    if (isPipActive && pipFrameCounter.current % 2 === 0) {
+      gl.setRenderTarget(fbo);
+      gl.clear();
+      gl.render(scene, mastCamera);
+      gl.setRenderTarget(null);
+    }
 
     // 4. Render Main 3D Canvas (Crisp Moebius Cel-Shading)
     gl.setViewport(0, 0, size.width, size.height);
     gl.setScissorTest(false);
     gl.render(scene, camera);
 
-    // 5. Locate Docked DOM Container and Render PiP Quad with Era Shaders
-    const pipElement = document.getElementById('optical-sensor-pip-viewport');
+    // 5. Render PiP Quad with Era Shaders
     if (pipElement && canvasRect.width > 0 && canvasRect.height > 0) {
       const rect = pipElement.getBoundingClientRect();
 

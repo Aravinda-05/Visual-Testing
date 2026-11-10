@@ -37,7 +37,7 @@ function CameraDirector({ controlsRef }: CameraDirectorProps) {
   // Smooth camera yaw angle tracker (shortest-arc wrapping prevents snapping on turns)
   const cameraYaw = useRef<number | null>(null);
   const camY = useRef<number | null>(null);
-  const followDistance = useRef<number>(7.5);
+  const followDistance = useRef<number>(16.0);
   const prevRoverPos = useRef(new THREE.Vector3());
   const prevMode = useRef<CameraMode>(cameraMode);
 
@@ -47,7 +47,7 @@ function CameraDirector({ controlsRef }: CameraDirectorProps) {
       // In 3rd person follow mode, wheel scroll dynamically zooms follow distance
       if (useMissionStore.getState().cameraMode === 'THIRD_PERSON_DRONE') {
         const delta = e.deltaY * 0.008;
-        followDistance.current = THREE.MathUtils.clamp(followDistance.current + delta, 3.2, 24.0);
+        followDistance.current = THREE.MathUtils.clamp(followDistance.current + delta, 6.0, 35.0);
       }
     };
     window.addEventListener('wheel', handleWheel, { passive: true });
@@ -69,10 +69,11 @@ function CameraDirector({ controlsRef }: CameraDirectorProps) {
     const rPos = roverObj.position;
     const rYaw = roverObj.rotation.y;
 
-    // Initialize on first valid frame
+    // Initialize on first valid frame: elevated 3/4 chase vista
     if (cameraYaw.current === null) {
       cameraYaw.current = rYaw;
-      camY.current = rPos.y + 2.8;
+      const initDist = followDistance.current;
+      camY.current = rPos.y + (initDist * 0.48 + 2.4);
       prevRoverPos.current.copy(rPos);
     }
 
@@ -90,7 +91,7 @@ function CameraDirector({ controlsRef }: CameraDirectorProps) {
         const dz = rPos.z - camera.position.z;
         cameraYaw.current = Math.atan2(dx, dz);
         camY.current = camera.position.y;
-        followDistance.current = THREE.MathUtils.clamp(Math.hypot(dx, dz), 3.2, 24.0);
+        followDistance.current = THREE.MathUtils.clamp(Math.hypot(dx, dz), 6.0, 35.0);
       }
       prevMode.current = cameraMode;
     }
@@ -154,7 +155,7 @@ function CameraDirector({ controlsRef }: CameraDirectorProps) {
       // The camera's horizontal offset is rigidly tied to the rover's instantaneous translation.
       // Zero distance stretching while driving, zero rubberband snapback!
       const dist = followDistance.current;
-      const chaseHeight = Math.max(1.8, dist * 0.40);
+      const chaseHeight = dist * 0.48 + 2.4;
 
       const camFwdX = Math.sin(cameraYaw.current);
       const camFwdZ = Math.cos(cameraYaw.current);
@@ -168,7 +169,7 @@ function CameraDirector({ controlsRef }: CameraDirectorProps) {
       camera.position.set(targetCamX, camY.current, targetCamZ);
 
       // 3. Look target directly at rover's center
-      camera.lookAt(rPos.x, rPos.y + 0.95, rPos.z);
+      camera.lookAt(rPos.x, rPos.y + 0.8, rPos.z);
 
       // Restore nominal wide FOV
       if ((camera as THREE.PerspectiveCamera).isPerspectiveCamera) {
@@ -198,7 +199,8 @@ export const RoverScene: React.FC<RoverSceneProps> = ({ driveControlsRef }) => {
     <div className="relative w-full h-full bg-[#05070B] overflow-hidden">
       <Canvas
         shadows
-        camera={{ position: [0, 5.5, -9.5], fov: cameraMode === 'CHEMCAM_TELESCOPE' ? 24 : 45, near: 0.1, far: 500 }}
+        dpr={[1, 1.5]}
+        camera={{ position: [0, 9.8, -16.0], fov: cameraMode === 'CHEMCAM_TELESCOPE' ? 24 : 45, near: 0.1, far: 500 }}
         gl={{
           antialias: true,
           alpha: false,

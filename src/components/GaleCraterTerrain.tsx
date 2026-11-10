@@ -27,9 +27,9 @@ export const GaleCraterTerrain: React.FC = () => {
     return { colorMap: color, normalMap: normal };
   }, []);
 
-  // 1. NASA Mars Trek DEM 200x200 Plane Geometry (160x160 resolution = 25,600 surface quads)
+  // 1. NASA Mars Trek DEM 200x200 Plane Geometry (96x96 resolution, optimized for 60fps)
   const terrainGeometry = useMemo(() => {
-    const baseGeo = new THREE.PlaneGeometry(200, 200, 160, 160);
+    const baseGeo = new THREE.PlaneGeometry(200, 200, 96, 96);
     const posAttr = baseGeo.attributes.position;
     const vertex = new THREE.Vector3();
 
@@ -92,7 +92,6 @@ export const GaleCraterTerrain: React.FC = () => {
         rotation={[-Math.PI / 2, 0, 0]}
         position={[0, 0, 0]}
         receiveShadow
-        castShadow
       />
 
       {/* 2. 12 Basaltic Ventifact Rock Hazards */}

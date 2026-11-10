@@ -267,19 +267,50 @@ export const HotspotInspectionCard: React.FC = () => {
         const cX = cardRect.right;
         const cY = cardRect.top + 28;
 
-        // Check if pin is visible on screen
-        const isPinOnScreen =
-          pX > -50 &&
-          pX < window.innerWidth + 50 &&
-          pY > -50 &&
-          pY < window.innerHeight + 50;
+        // Verify if pin is genuinely visible on screen and not occluded or hidden by Drei
+        let isVisible = true;
+
+        // 1. Collapsed bounding box (occluded / display: none) or corner fallback
+        if (pinRect.width < 1 || pinRect.height < 1 || (pX <= 6 && pY <= 6)) {
+          isVisible = false;
+        }
+
+        // 2. Element layout check (not attached to visible layout tree)
+        if (pinElem.offsetParent === null) {
+          isVisible = false;
+        }
+
+        // 3. Computed visibility & opacity across parent DOM hierarchy (Drei sets opacity: 0 on occlusion)
+        if (isVisible) {
+          let curr: HTMLElement | null = pinElem;
+          while (curr && curr !== document.body) {
+            const style = window.getComputedStyle(curr);
+            if (
+              style.display === 'none' ||
+              style.visibility === 'hidden' ||
+              parseFloat(style.opacity || '1') < 0.1
+            ) {
+              isVisible = false;
+              break;
+            }
+            curr = curr.parentElement;
+          }
+        }
+
+        // 4. Viewport boundaries check (must be within active viewport)
+        if (
+          isVisible &&
+          (pX < 10 || pX > window.innerWidth - 10 || pY < 10 || pY > window.innerHeight - 10)
+        ) {
+          isVisible = false;
+        }
 
         setLineCoords({
           x1: cX,
           y1: cY,
           x2: pX,
           y2: pY,
-          visible: isPinOnScreen,
+          visible: isVisible,
         });
       }
 

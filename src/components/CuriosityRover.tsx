@@ -346,10 +346,10 @@ export const CuriosityRover: React.FC<CuriosityRoverProps> = ({ controlsRef }) =
     steerAngle.current = THREE.MathUtils.damp(steerAngle.current, targetSteer * 0.52, 6.0, dt);
 
     // 2. Throttle & Top Speed (Puncture Speed Penalty)
-    const integritySpeedFactor = Math.max(0.65, wheelIntegrityPct / 100.0);
-    // Standard cruise speed: 12.0 m/s (~43 km/h). Boost speed (Shift): 22.0 m/s (~80 km/h)
-    const maxForward = (input.boost ? 22.0 : 12.0) * integritySpeedFactor;
-    const maxReverse = -6.5 * integritySpeedFactor;
+    const integritySpeedFactor = Math.max(0.70, wheelIntegrityPct / 100.0);
+    // Dynamic cruise speed: 16.0 m/s (~58 km/h). Boost speed (Shift): 28.0 m/s (~100 km/h)
+    const maxForward = (input.boost ? 28.0 : 16.0) * integritySpeedFactor;
+    const maxReverse = -8.0 * integritySpeedFactor;
 
     let throttle = 0;
     if (input.forward) throttle += 1;
@@ -361,22 +361,22 @@ export const CuriosityRover: React.FC<CuriosityRoverProps> = ({ controlsRef }) =
     }
 
     if (input.brake) {
-      speed.current = THREE.MathUtils.damp(speed.current, 0, 20.0, dt);
+      speed.current = THREE.MathUtils.damp(speed.current, 0, 24.0, dt);
     } else if (throttle > 0) {
-      speed.current = THREE.MathUtils.damp(speed.current, maxForward, 10.0, dt);
+      speed.current = THREE.MathUtils.damp(speed.current, maxForward, 14.0, dt);
     } else if (throttle < 0) {
-      speed.current = THREE.MathUtils.damp(speed.current, maxReverse, 10.0, dt);
+      speed.current = THREE.MathUtils.damp(speed.current, maxReverse, 12.0, dt);
     } else {
-      speed.current = THREE.MathUtils.damp(speed.current, 0, 6.0, dt);
+      speed.current = THREE.MathUtils.damp(speed.current, 0, 8.0, dt);
     }
 
     // 3. Turning Yaw
     const isMoving = Math.abs(speed.current) > 0.1;
     if (isMoving) {
-      yaw.current += steerAngle.current * 2.2 * Math.sign(speed.current) * dt;
+      yaw.current += steerAngle.current * 2.6 * Math.sign(speed.current) * dt;
     } else if (targetSteer !== 0) {
       // Stationary pivot turn
-      yaw.current += targetSteer * 1.8 * dt;
+      yaw.current += targetSteer * 2.0 * dt;
     }
 
     // 4. Position Translation
