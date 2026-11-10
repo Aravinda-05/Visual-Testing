@@ -205,25 +205,50 @@ export const MissionHUD: React.FC = () => {
             </button>
           </div>
 
-          <div className="flex items-center justify-between text-[9px] text-slate-400">
+          {/* Camera POV Switcher (Follow 3rd Person vs Free Roam Orbit) */}
+          <div className="flex items-center gap-1.5 my-1.5 pt-1.5 border-t border-slate-800">
+            <span className="text-[8px] text-slate-400 font-bold uppercase tracking-wider">POV:</span>
+            <div className="flex items-center rounded bg-black/60 border border-slate-800 p-0.5 gap-1">
+              <button
+                onClick={() => {
+                  setCameraMode('THIRD_PERSON_DRONE');
+                  soundEngine.playUiBlip();
+                }}
+                className={`px-2 py-0.5 rounded text-[8px] font-bold transition-all ${
+                  cameraMode === 'THIRD_PERSON_DRONE'
+                    ? 'bg-cyan-500 text-black shadow-[0_0_8px_rgba(0,240,255,0.4)]'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                FOLLOW (3RD)
+              </button>
+              <button
+                onClick={() => {
+                  setCameraMode('FREE_ORBIT');
+                  soundEngine.playUiBlip();
+                }}
+                className={`px-2 py-0.5 rounded text-[8px] font-bold transition-all ${
+                  cameraMode === 'FREE_ORBIT'
+                    ? 'bg-amber-400 text-black shadow-[0_0_8px_rgba(251,191,36,0.4)]'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                FREE ROAM
+              </button>
+            </div>
             <button
               onClick={() => {
                 cycleCameraMode();
                 soundEngine.playUiBlip();
               }}
-              className="flex items-center gap-1.5 hover:text-white transition-colors"
-              title="Click or press [C] to cycle Camera POV: 3rd Person Follow -> Free Roam Orbit -> ChemCam Zoom"
+              className="text-[8px] text-slate-400 hover:text-cyan-300 ml-auto transition-colors"
+              title="Press [C] to cycle Camera POV"
             >
-              <Camera className="w-3.5 h-3.5 text-cyan-400" />
-              <span>[C]</span>
-              <strong className="text-cyan-200">
-                {cameraMode === 'THIRD_PERSON_DRONE'
-                  ? 'FOLLOW (3RD)'
-                  : cameraMode === 'FREE_ORBIT'
-                  ? 'FREE ROAM'
-                  : 'CHEMCAM ZOOM'}
-              </strong>
+              [C]
             </button>
+          </div>
+
+          <div className="flex items-center justify-between text-[9px] text-slate-400">
             <button
               onClick={toggleCodex}
               className="flex items-center gap-1.5 hover:text-white transition-colors"

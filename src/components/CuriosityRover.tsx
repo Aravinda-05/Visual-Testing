@@ -37,27 +37,38 @@ function GLTFCuriosityModel() {
     applyCelShadingToHierarchy(clone, gradientMap);
 
     // Compute bounding box to center rover and ground wheels cleanly to Y = 0
-    const bbox = new THREE.Box3().setFromObject(clone);
-    if (!bbox.isEmpty() && isFinite(bbox.min.y)) {
-      const center = new THREE.Vector3();
-      bbox.getCenter(center);
+    const wheelNames = ['wheel_01_L', 'wheel_02_L', 'wheel_03_L', 'wheel_01_R', 'wheel_02_R', 'wheel_03_R'];
+    const wheelsBox = new THREE.Box3();
+    let hasWheels = false;
+    wheelNames.forEach((name) => {
+      const w = clone.getObjectByName(name);
+      if (w) {
+        w.updateWorldMatrix(true, true);
+        const wBox = new THREE.Box3().setFromObject(w);
+        wheelsBox.union(wBox);
+        hasWheels = true;
+      }
+    });
 
-      // Measure bottom-most contact point across wheel assemblies
-      const wheelNames = ['wheel_01_L', 'wheel_02_L', 'wheel_03_L', 'wheel_01_R', 'wheel_02_R', 'wheel_03_R'];
-      let lowestWheelY = Infinity;
-      wheelNames.forEach((name) => {
-        const w = clone.getObjectByName(name);
-        if (w) {
-          const wBox = new THREE.Box3().setFromObject(w);
-          if (wBox.min.y < lowestWheelY) lowestWheelY = wBox.min.y;
-        }
-      });
-
-      const groundYOffset = isFinite(lowestWheelY) ? lowestWheelY : bbox.min.y;
-
-      clone.position.x = -center.x;
-      clone.position.y = -groundYOffset;
-      clone.position.z = -center.z;
+    if (hasWheels && !wheelsBox.isEmpty()) {
+      const wheelCenter = new THREE.Vector3();
+      wheelsBox.getCenter(wheelCenter);
+      // Center clone so that:
+      // X = 0 is the lateral center between left and right wheels
+      // Y = 0 is the exact ground contact point (bottom of wheels)
+      // Z = 0 is the longitudinal center of the wheelbase
+      clone.position.x = -wheelCenter.x;
+      clone.position.y = -wheelsBox.min.y;
+      clone.position.z = -wheelCenter.z;
+    } else {
+      const bbox = new THREE.Box3().setFromObject(clone);
+      if (!bbox.isEmpty() && isFinite(bbox.min.y)) {
+        const center = new THREE.Vector3();
+        bbox.getCenter(center);
+        clone.position.x = -center.x;
+        clone.position.y = -bbox.min.y;
+        clone.position.z = -center.z;
+      }
     }
 
     return clone;
@@ -291,6 +302,7 @@ export const CuriosityRover: React.FC<CuriosityRoverProps> = ({ controlsRef }) =
   const steerAngle = useRef(0);
   const lastHazardCheck = useRef(0);
   const lastResetCounter = useRef(resetCounter);
+  const isFirstFrame = useRef(true);
 
   useFrame((_, delta) => {
     const dt = Math.min(delta, 0.08);
@@ -303,6 +315,7 @@ export const CuriosityRover: React.FC<CuriosityRoverProps> = ({ controlsRef }) =
     // Kinematics reset when [R] is pressed or store reset counter changes
     if (input.reset || lastResetCounter.current !== resetCounter) {
       lastResetCounter.current = resetCounter;
+      isFirstFrame.current = true;
       input.reset = false;
       pos.current.set(0, 0, 0);
       yaw.current = 0;
@@ -377,12 +390,12 @@ export const CuriosityRover: React.FC<CuriosityRoverProps> = ({ controlsRef }) =
     // 5. Terrain Elevation & 4-Corner Wheel Suspension Probes
     const groundY = getTerrainHeight(pos.current.x, pos.current.z);
 
-    const halfWheelbase = 0.95;
-    const halfTrackwidth = 0.82;
+    const halfWheelbase = 1.10;
+    const halfTrackwidth = 1.05;
     const rightX = Math.cos(yaw.current);
     const rightZ = -Math.sin(yaw.current);
 
-    // 4 Corner wheel elevation probes
+    // 4 Corner outer wheel elevation probes
     const flX = pos.current.x + fwdX * halfWheelbase - rightX * halfTrackwidth;
     const flZ = pos.current.z + fwdZ * halfWheelbase - rightZ * halfTrackwidth;
     const yFL = getTerrainHeight(flX, flZ);
@@ -405,24 +418,25 @@ export const CuriosityRover: React.FC<CuriosityRoverProps> = ({ controlsRef }) =
     const yLeft = (yFL + yRL) * 0.5;
     const yRight = (yFR + yRR) * 0.5;
 
-    const targetPitch = Math.atan2(yFront - yRear, halfWheelbase * 2);
+    // Pitch: Negative sign ensures that when front is higher (uphill), pitch is negative,
+    // which tilts the front of the rover UP in Three.js right-handed YXZ rotation!
+    const targetPitch = -Math.atan2(yFront - yRear, halfWheelbase * 2);
+    // Roll: Positive roll lifts the right side (+X)
     const targetRoll = Math.atan2(yRight - yLeft, halfTrackwidth * 2);
 
-    pitch.current = THREE.MathUtils.damp(pitch.current, targetPitch, 8.0, dt);
-    roll.current = THREE.MathUtils.damp(roll.current, targetRoll, 8.0, dt);
+    pitch.current = THREE.MathUtils.damp(pitch.current, targetPitch, 9.0, dt);
+    roll.current = THREE.MathUtils.damp(roll.current, targetRoll, 9.0, dt);
 
-    // Dynamic tilt compensation: when the chassis pitches or rolls around its center,
-    // the perimeter wheel contact points rotate downward by:
-    const pitchDrop = Math.abs(Math.sin(pitch.current)) * halfWheelbase;
-    const rollDrop = Math.abs(Math.sin(roll.current)) * halfTrackwidth;
-    const tiltDrop = pitchDrop + rollDrop;
+    // Ground contact height at the center of the wheelbase
+    const avgWheelGround = (yFL + yFR + yRL + yRR) * 0.25;
+    const targetY = avgWheelGround;
 
-    // Contact terrain height under the highest wheel
-    const maxContact = Math.max(yFL, yFR, yRL, yRR, groundY);
-    // +0.06m positive clearance so 50cm aluminum tires sit cleanly ON TOP of the regolith
-    const targetY = maxContact + tiltDrop + 0.06;
-
-    pos.current.y = THREE.MathUtils.damp(pos.current.y, targetY, 14.0, dt);
+    if (isFirstFrame.current) {
+      pos.current.y = targetY;
+      isFirstFrame.current = false;
+    } else {
+      pos.current.y = THREE.MathUtils.damp(pos.current.y, targetY, 15.0, dt);
+    }
 
     // Update 3D Object transform
     if (roverGroupRef.current) {
@@ -465,7 +479,7 @@ export const CuriosityRover: React.FC<CuriosityRoverProps> = ({ controlsRef }) =
   });
 
   return (
-    <group ref={roverGroupRef} position={[0, 0, 0]}>
+    <group ref={roverGroupRef} name="CuriosityRoverRoot" position={[0, 0, 0]}>
       {/* Primary Model Loader with Draco compression + fallback */}
       <ModelErrorBoundary fallback={<ProceduralCuriosity />}>
         <Suspense fallback={<ProceduralCuriosity />}>

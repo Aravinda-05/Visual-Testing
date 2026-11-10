@@ -4,7 +4,7 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, Grid } from '@react-three/drei';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import { Perf } from 'r3f-perf';
-import { useMissionStore } from '../../store/useMissionStore';
+import { useMissionStore, CameraMode } from '../../store/useMissionStore';
 import { CuriosityRover, DriveControls } from '../CuriosityRover';
 import { GaleCraterTerrain } from '../GaleCraterTerrain';
 import { ScienceMechanics } from '../ScienceMechanics';
@@ -23,8 +23,6 @@ interface CameraDirectorProps {
  */
 function CameraDirector({ controlsRef }: CameraDirectorProps) {
   const { camera } = useThree();
-  const roverPos = useMissionStore((s) => s.roverPos);
-  const roverRotation = useMissionStore((s) => s.roverRotation);
   const cameraMode = useMissionStore((s) => s.cameraMode);
   const missionPhase = useMissionStore((s) => s.missionPhase);
 
@@ -37,26 +35,72 @@ function CameraDirector({ controlsRef }: CameraDirectorProps) {
   );
 
   // Smooth camera yaw angle tracker (shortest-arc wrapping prevents snapping on turns)
-  const cameraYaw = useRef(roverRotation);
-  const lookTargetRef = useRef(new THREE.Vector3(0, 1.2, 0));
-  const initialized = useRef(false);
+  const cameraYaw = useRef<number | null>(null);
+  const camY = useRef<number | null>(null);
+  const prevRoverPos = useRef(new THREE.Vector3());
+  const prevMode = useRef<CameraMode>(cameraMode);
 
-  useFrame((_, delta) => {
+  useFrame((state, delta) => {
     const dt = Math.min(delta, 0.08);
 
     // During Soul-Transfer, camera ascent is handled by ScienceMechanics
     if (missionPhase === 'SOUL_TRANSFER_COMPLETE') return;
 
+    // DIRECT THREE.JS SCENE GRAPH LOOKUP:
+    // Query CuriosityRoverRoot directly from WebGL scene graph.
+    // This completely eliminates React state batching latency (the root cause of rubberbanding)!
+    const roverObj = state.scene.getObjectByName('CuriosityRoverRoot');
+    if (!roverObj) return;
+
+    const rPos = roverObj.position;
+    const rYaw = roverObj.rotation.y;
+
+    // Initialize on first valid frame
+    if (cameraYaw.current === null) {
+      cameraYaw.current = rYaw;
+      camY.current = rPos.y + 2.8;
+      prevRoverPos.current.copy(rPos);
+    }
+
+    // Handle camera mode transitions
+    if (prevMode.current !== cameraMode) {
+      if (cameraMode === 'FREE_ORBIT') {
+        // Transitioning into FREE_ORBIT:
+        if (controlsRef.current) {
+          controlsRef.current.target.set(rPos.x, rPos.y + 0.9, rPos.z);
+          controlsRef.current.update();
+        }
+      } else if (cameraMode === 'THIRD_PERSON_DRONE') {
+        // Transitioning back to THIRD_PERSON_DRONE:
+        // Match current camera angle so there is no jarring snap
+        const dx = rPos.x - camera.position.x;
+        const dz = rPos.z - camera.position.z;
+        cameraYaw.current = Math.atan2(dx, dz);
+        camY.current = camera.position.y;
+      }
+      prevMode.current = cameraMode;
+    }
+
     if (cameraMode === 'FREE_ORBIT') {
-      // In Free Roam Orbit mode, OrbitControls has full control of camera position
-      // Smoothly guide OrbitControls target to follow the rover center
+      // FREE ROAM ORBIT MODE:
+      // OrbitControls allows the user to click & drag to orbit and scroll to zoom.
+      // Simultaneously translate camera along with rover movement so Curiosity remains in frame if driven
+      const deltaX = rPos.x - prevRoverPos.current.x;
+      const deltaY = rPos.y - prevRoverPos.current.y;
+      const deltaZ = rPos.z - prevRoverPos.current.z;
+
+      camera.position.x += deltaX;
+      camera.position.y += deltaY;
+      camera.position.z += deltaZ;
+
       if (controlsRef.current) {
-        const roverCenter = new THREE.Vector3(roverPos[0], roverPos[1] + 0.9, roverPos[2]);
-        controlsRef.current.target.lerp(roverCenter, Math.min(1.0, 12.0 * dt));
+        controlsRef.current.target.set(rPos.x, rPos.y + 0.9, rPos.z);
         controlsRef.current.update();
       }
 
-      // Restore wide FOV
+      prevRoverPos.current.copy(rPos);
+
+      // Restore nominal wide FOV
       if ((camera as THREE.PerspectiveCamera).isPerspectiveCamera) {
         const pCam = camera as THREE.PerspectiveCamera;
         pCam.fov = THREE.MathUtils.damp(pCam.fov, 45, 5.0, dt);
@@ -65,11 +109,13 @@ function CameraDirector({ controlsRef }: CameraDirectorProps) {
       return;
     }
 
+    prevRoverPos.current.copy(rPos);
+
     if (cameraMode === 'CHEMCAM_TELESCOPE') {
-      // Position camera directly at Curiosity's Remote Sensing Mast looking down at the rock
-      const mastX = roverPos[0] + 0.42;
-      const mastY = roverPos[1] + 2.2;
-      const mastZ = roverPos[2] + 0.85;
+      // Mast-mounted ChemCam Telescope zoom
+      const mastX = rPos.x + 0.42;
+      const mastY = rPos.y + 2.2;
+      const mastZ = rPos.z + 0.85;
 
       const mastPos = new THREE.Vector3(mastX, mastY, mastZ);
       camera.position.lerp(mastPos, 6.0 * dt);
@@ -83,42 +129,33 @@ function CameraDirector({ controlsRef }: CameraDirectorProps) {
 
       camera.lookAt(targetSpot.current);
     } else {
-      // Third-Person Drone Chase Cam (Follow mode)
+      // THIRD PERSON DRONE CHASE CAM (Follow Mode):
       // 1. Smoothly interpolate camera yaw behind the rover (circular shortest-arc math)
-      let diff = (roverRotation - cameraYaw.current) % (Math.PI * 2);
+      let diff = (rYaw - cameraYaw.current) % (Math.PI * 2);
       if (diff < -Math.PI) diff += Math.PI * 2;
       if (diff > Math.PI) diff -= Math.PI * 2;
 
-      // On first frame, snap directly behind rover
-      if (!initialized.current) {
-        cameraYaw.current = roverRotation;
-        lookTargetRef.current.set(roverPos[0], roverPos[1] + 1.05, roverPos[2]);
-        initialized.current = true;
-      } else {
-        cameraYaw.current += diff * Math.min(1.0, 5.5 * dt);
-      }
+      cameraYaw.current += diff * Math.min(1.0, 4.8 * dt);
 
-      // 2. Firm follow distance behind rover orientation
+      // 2. Direct translation anchoring:
+      // The camera's horizontal offset is rigidly tied to the rover's instantaneous translation.
+      // Zero distance stretching while driving, zero rubberband snapback!
       const chaseDistance = 7.0;
-      const chaseHeight = 3.2;
+      const chaseHeight = 2.8;
 
       const camFwdX = Math.sin(cameraYaw.current);
       const camFwdZ = Math.cos(cameraYaw.current);
 
-      const targetCamX = roverPos[0] - camFwdX * chaseDistance;
-      const targetCamZ = roverPos[2] - camFwdZ * chaseDistance;
-      const targetCamY = roverPos[1] + chaseHeight;
+      const targetCamX = rPos.x - camFwdX * chaseDistance;
+      const targetCamZ = rPos.z - camFwdZ * chaseDistance;
 
-      const targetCamPos = new THREE.Vector3(targetCamX, targetCamY, targetCamZ);
+      if (camY.current === null) camY.current = rPos.y + chaseHeight;
+      camY.current = THREE.MathUtils.damp(camY.current, rPos.y + chaseHeight, 9.0, dt);
 
-      // High-responsiveness follow (16.0 * dt) rigidly maintains 7.0m follow distance while driving!
-      // Completely eliminates the rubberband lag where rover moved away before snapping back!
-      camera.position.lerp(targetCamPos, Math.min(1.0, 16.0 * dt));
+      camera.position.set(targetCamX, camY.current, targetCamZ);
 
-      // 3. Smooth Look Target directly at rover's center of mass
-      const lookTarget = new THREE.Vector3(roverPos[0], roverPos[1] + 1.05, roverPos[2]);
-      lookTargetRef.current.lerp(lookTarget, Math.min(1.0, 16.0 * dt));
-      camera.lookAt(lookTargetRef.current);
+      // 3. Look target directly at rover's center
+      camera.lookAt(rPos.x, rPos.y + 0.95, rPos.z);
 
       // Restore nominal wide FOV
       if ((camera as THREE.PerspectiveCamera).isPerspectiveCamera) {
