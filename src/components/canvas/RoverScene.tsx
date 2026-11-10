@@ -149,18 +149,18 @@ export const RoverScene: React.FC<RoverSceneProps> = ({ driveControlsRef }) => {
         {/* 4. ChemCam 1064nm Laser, Plasma Sparks & Soul-Transfer Ascending Beam */}
         <ScienceMechanics />
 
-        {/* Optional Tactical Navigation Grid */}
+        {/* Tactical Landing Pad Target Grid (local to touchdown site) */}
         <Grid
-          position={[0, 0.05, 0]}
-          args={[120, 120]}
-          cellSize={3}
-          cellThickness={0.7}
+          position={[0, 0.02, 0]}
+          args={[18, 18]}
+          cellSize={1.5}
+          cellThickness={0.8}
           cellColor="#00F0FF"
-          sectionSize={15}
-          sectionThickness={1.1}
+          sectionSize={6}
+          sectionThickness={1.2}
           sectionColor="#FFB800"
-          fadeDistance={55}
-          infiniteGrid
+          fadeDistance={20}
+          fadeStrength={1.5}
         />
 
         {/* 5. Dedicated Remote Sensing Mast Secondary Camera & PiP Optical Sensor Renderer */}

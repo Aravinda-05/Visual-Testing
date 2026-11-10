@@ -1,5 +1,5 @@
-# NASA JPL // Mars Visual Style Feasibility Sandbox
-### Moebius Cel-Shaded + Evolving Era Post-Processing 3D Rendering Pipeline
+# NASA JPL // Mars Curiosity (MSL) Visual Feasibility Sandbox
+### Moebius Cel-Shaded 3D Simulation with Genuine NASA Mars Trek DEM & Historical Era Shaders
 
 [![React 18](https://img.shields.io/badge/React-18.3.1-61DAFB?logo=react&logoColor=black)](https://react.dev/)
 [![Three.js](https://img.shields.io/badge/Three.js-r169-black?logo=threedotjs&logoColor=white)](https://threejs.org/)
@@ -8,89 +8,127 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind-3.4-06B6D4?logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
 
-A standalone WebGL & React Three Fiber graphics sandbox evaluating a hybrid **Moebius Cel-Shaded + Evolving Spaceflight Era Post-Processing** rendering pipeline for a 3D Martian planetary rover scene.
+A real-time WebGL and React Three Fiber planetary simulation evaluating a hybrid **Moebius Cel-Shaded Art Style + Evolving Spaceflight Era Sensor Shaders** for a playable NASA Mars Curiosity Rover (**Node M-3B**) vertical slice set in Gale Crater / Yellowknife Bay.
 
 ---
 
-## Visual & Technical Overview
+## Technical Architecture Overview
 
 ```
-+-----------------------------------------------------------------------------------+
-|                            HTML DOM / VECTOR OVERLAY                              |
-|   - Mission HUD (Top Bar, SOL Counter, MET, Era Badges, 60fps)                   |
-|   - Diegetic 3D Spatial UI (<Html distanceFactor={12}> with SVG Leader Lines)     |
-|   * RAZOR-SHARP AT NATIVE DISPLAY RESOLUTION (Unaffected by Post-Processing)     |
-+-----------------------------------------------------------------------------------+
-                                         |
-                                         v
-+-----------------------------------------------------------------------------------+
-|                        @REACT-THREE/POSTPROCESSING STACK                          |
-|   - Dynamic Canvas DPR: 0.35 (1967) -> 0.50 (1976) -> 0.75 (1997) -> 1.25 (2021)   |
-|   - <Pixelation granularity={...} />                                              |
-|   - <Scanline density={...} opacity={0.35} /> (Overlay CRT raster)                |
-|   - <ChromaticAberration offset={[dx, dy]} /> (Optical lens dispersion)           |
-|   - <Vignette darkness={...} /> + <HueSaturation saturation={-1.0} /> (Monochrome)|
-+-----------------------------------------------------------------------------------+
-                                         |
-                                         v
-+-----------------------------------------------------------------------------------+
-|                          THREE.JS WEBGL RENDER PASS                               |
-|   - ToonModelLoader: 4-band DataTexture gradientMap (4x1 RedFormat, NearestFilter)|
-|   - Inverted Hull Ink Lines: <Outlines color="#090D16" thickness={0.015} />       |
-|   - PlanetarySurface: 200x200 plane with multi-octave non-indexed crater basin    |
-|   - Faceted Normals: flatShading: true on Martian ochre (#C85A32)                 |
-+-----------------------------------------------------------------------------------+
++-----------------------------------------------------------------------------------------------+
+|                                  FLIGHT DIRECTOR 2D HUD LAYER                                 |
+|  - 2-Minute MRO Orbital Relay Countdown Timer (State Machine & Audio Cues)                    |
+|  - Real-Time Telemetry Oscilloscope (60fps Canvas: MMRTG Temp, Capacitor, Wheel Integrity)   |
+|  - Live LIBS Atomic Emission Spectrometer (H 656nm, Si 288nm, Fe 404nm, Mg 518nm)            |
+|  - Antenna Gimbal Alignment Radar Interface (Dual-axis Azimuth / Elevation S-Band Lock)       |
++-----------------------------------------------------------------------------------------------+
+                                                |
+                                                v
++-----------------------------------------------------------------------------------------------+
+|                     PICTURE-IN-PICTURE (PiP) HISTORICAL OPTICAL SENSOR FEED                   |
+|  - Mast-Mounted Secondary PerspectiveCamera (fov=38) with Chassis Vibration Harmonics         |
+|  - Dynamic Scissor / Viewport Sub-Rendering into 360x260px Docked HUD Window                  |
+|  - Era Shaders: [1] 1967 Vidicon TV | [2] 1997 CCD Bumper Cam | [3] 2012 ChemCam Telescope   |
+|  - Full Cross-DPR Zoom Parity (100%, 80%, 125%, 150% browser scalings)                        |
++-----------------------------------------------------------------------------------------------+
+                                                |
+                                                v
++-----------------------------------------------------------------------------------------------+
+|                               THREE.JS / R3F PLANETARY WORLD                                  |
+|  - Moebius Cel-Shading: 4-band DataTexture LUT + Inverted Hull Outlines (<Outlines />)        |
+|  - Step 0B Pipeline: NASA Mars Trek .stl -> DEM Heightmap (256x256 relief + 14m elevation)    |
+|  - Curiosity Kinematics: 6-wheel rocker-bogie, 4-wheel steering, suspension slope probes      |
+|  - MMRTG Nuclear Thermal Dynamics (110W Pu-238, cooling curve, overheat lockouts at 225°C)   |
+|  - Aluminum Wheel Punctures: High-speed basalt ventifact collisions cause drift & speed drops |
+|  - ChemCam LIBS Laser: 1064nm pulsed mudstone vaporization with plasma sparks & chimes       |
+|  - Cosmic Soul-Transfer Sequence: Ascending orbital particle beam to Mars Reconnaissance Orb. |
++-----------------------------------------------------------------------------------------------+
 ```
 
 ---
 
-## Key Architectural Pillars
+## Core Systems & Implementation Details
 
-### 1. Procedural 4-Step Toon Quantization (`celShading.ts` & `ToonModelLoader.tsx`)
-* **Mathematical LUT**: A singleton $4 \times 1$ `THREE.DataTexture` using `THREE.RedFormat` with `NearestFilter` acting as a stepped cel-shading `gradientMap`.
-  * Band 1: `[0.00 – 0.25]` $\to$ Deep ink shadow (`40`)
-  * Band 2: `[0.25 – 0.50]` $\to$ Core terminator shadow (`105`)
-  * Band 3: `[0.50 – 0.75]` $\to$ Base diffuse illumination (`185`)
-  * Band 4: `[0.75 – 1.00]` $\to$ Peak specular highlight (`255`)
-* **Comic-Book Outlining**: Wrapped with `@react-three/drei` `<Outlines color="#090d16" thickness={0.015} />` for Moebius-style ink lines.
-* **Compound Procedural Rover Fallback**: Built entirely from geometric primitives:
-  * Warm Electronics Box (WEB) main chassis with gold foil Multi-Layer Insulation (MLI) undercarriage.
-  * Three-section solar panel deck with angled port and starboard wings.
-  * 6-wheel Rocker-Bogie mobility suspension with cleated wheels and hub caps.
-  * Panoramic Mast Assembly (PMA) with stereo Mastcam-Z eyes and SuperCam laser spectrometer.
-  * Articulated 5-DoF robotic sample arm with rotary coring drill turret.
-  * High-Gain parabolic dish antenna (HGA) and UHF whip antenna.
-* **Drop-in GLTF Support & Auto-Grounding**: Drop any custom GLB model into `/public/models/rover.glb`. It automatically traverses the hierarchy, replaces all materials with 4-band `MeshToonMaterial`, enables shadow casting/receiving, and computes the bounding box to seat the model flush on the ground.
+### 1. Step 0B: NASA Mars Trek `.stl` to DEM Heightmap Pipeline (`convert_stl_dem.py`)
+To ensure topological accuracy, the terrain relief is extracted directly from genuine NASA orbital survey elevation models downloaded from **NASA Mars Trek**:
+* **Binary/ASCII STL Ingestion**: `convert_stl_dem.py` parses `raw_assets/trekSTL.stl` (323,190 triangles, 969,570 vertices) using `numpy` and binary `struct`.
+* **3D-Print Baseplate Stripping**: Automatically filters out flat 3D-printing pedestal vertices ($Z \le -21.7855\,\text{m}$), isolating 960,000 genuine Martian surface points.
+* **Rasterization & Anti-Aliasing**: Projects $(X, Y)$ onto a $256 \times 256$ grid recording maximum elevation, fills interior voids via nearest-neighbor interpolation, and applies a $1\,\text{px}$ Gaussian blur (`PIL.ImageFilter.GaussianBlur`) to eliminate 8-bit quantization stepping.
+* **Output Assets**:
+  * `public/terrains/gale_crater_dem.png`: 8-bit normalized grayscale elevation heightmap.
+  * `public/terrains/gale_crater_texture.png`: $1024 \times 1024$ hypsometric elevation texture with NASA contour lines.
+  * `public/terrains/gale_crater_normal.png`: $1024 \times 1024$ surface relief tangent normal map.
+* **Kinematics Synchronization (`terrainMath.ts`)**: The DEM height grid is pre-baked into `galeCraterDemData.ts` and sampled via bilinear interpolation in `getTerrainHeight(x, z)`. The origin touchdown site is normalized to $Y = 0.00\,\text{m}$, guaranteeing zero wheel floating between the visual mesh and the physics engine.
 
-### 2. Faceted Planetary Crater Basin (`PlanetarySurface.tsx` & `terrainGenerator.ts`)
-* **200m $\times$ 200m Plane**: $128 \times 128$ segments rotated horizontally.
-* **Multi-Octave Geology**: Deterministic trigonometric noise combining:
-  * Central impact crater with elevated rim ($r \approx 26\text{m}$, elevation $+5.2\text{m}$) and stepped geological terraces.
-  * Regional Martian dune waves (Octave 1, $\lambda \approx 90\text{m}$).
-  * Rotated fractured bedrock ridges (Octave 2, $\theta \approx 35.5^\circ$).
-  * Jagged scree and boulder ridges (Octave 3, fold noise).
-  * Micro-chipping facets (Octave 4).
-* **Guaranteed Regolith Grounding**: A leveled landing pad ($r \le 4.2\text{m}$, elevation $Y = 0.00\text{m}$) blended via a cubic Hermite smoothstep spline ($t^2(3 - 2t)$), ensuring the rover's wheels firmly contact the ground with zero daylight.
-* **Sharp Geometric Facets**: Converted to a non-indexed `BufferGeometry` via `toNonIndexed()` with recomputed face normals, rendered with `flatShading: true` in Martian Ochre (`#C85A32`).
+---
 
-### 3. Era-Reactive Post-Processing Pipeline (`EraPostProcessing.tsx` & `era.ts`)
-Driven reactively by a Leva dropdown with four historical spaceflight telemetry states:
+### 2. Curiosity Rover Physics & Engineering Kinematics (`CuriosityRover.tsx`)
+* **6-Wheel Rocker-Bogie Suspension**: Probes ground heights at the front axle, rear axle, port wheels, and starboard wheels to calculate chassis pitch ($\theta$) and roll ($\phi$) dynamically across steep crater inclines.
+* **4-Wheel Independent Steering**: Front wheels turn toward steering inputs, while rear wheels counter-steer at a 70% ratio (simulating NASA Curiosity / Perseverance steering kinematics) for tight turns and zero-radius pivot spins.
+* **Nuclear Thermal Management (MMRTG)**:
+  * Simulates Curiosity's Multi-Mission Radioisotope Thermoelectric Generator fueled by Plutonium-238 dioxide.
+  * Continuously balances 110W baseline decay heat against radiative convective dissipation.
+  * Core operating temperature: $180^\circ\text{C} - 240^\circ\text{C}$. High-gear boost driving generates excess heat; exceeding $225^\circ\text{C}$ activates automatic thermal throttling and locks out the drive motors until cooldown.
+* **Thin Aluminum Wheel Grouser Integrity**:
+  * Models Curiosity's actual historical wheel damage on sharp Martian ventifacts.
+  * 12 jagged basaltic rock hazards are scattered across Yellowknife Bay. Colliding with rocks at speed ($>2.0\,\text{m/s}$) punctures the $0.75\,\text{mm}$ aluminum skin.
+  * Wheel damage produces persistent lateral steering drift (pulling toward the damaged wheel) and reduces maximum speed by up to 55%.
+* **Regolith Dust Trail (`DustTrail.tsx`)**: Emits low-poly cel-shaded Martian dust puffs behind the 6 wheels proportional to vehicle speed and turning angle.
 
-| Era Preset | Target Telemetry | Pixel Granularity | Scanline Density | Chromatic Aberration | Color Grade Mode | Canvas DPR |
-| :--- | :--- | :---: | :---: | :---: | :---: | :---: |
-| **`1967_SURVEYOR`** | Vidicon Analog TV Raster | 10 | 2.2 | `[0.004, 0.004]` | Monochrome Phosphor | **0.35** |
-| **`1976_VIKING`** | Facsimile Photodiode Scanner | 6 | 1.4 | `[0.003, 0.001]` | Sepia / Kodachrome | **0.50** |
-| **`1997_SOJOURNER`** | IMP Stereo CCD (16-bit) | 4 | 0.8 | `[0.001, 0.001]` | 16-bit Dithered Color | **0.75** |
-| **`2021_MODERN`** | Mastcam-Z Multispectral Sensor | 0 (Off) | 0.0 (Off) | `[0, 0]` | Full HDR Cel-Shaded Bloom | **1.25** |
+---
 
-* **Hardware-Level DPR Scaling**: The GPU backbuffer itself is reactively downsampled/upsampled via `useThree((state) => state.setDpr(currentDpr))`.
-* **Zero Scanline Artifacts in Modern Mode**: Modern digital sensors omit the scanline pass to preserve pristine cel-shading clarity, reserving scanlines strictly for vintage cathode ray / facsimile modes.
+### 3. ChemCam 1064nm Pulsed LIBS Laser & Science (`ScienceMechanics.tsx`)
+* **Laser-Induced Breakdown Spectroscopy**: When Curiosity approaches within $7.0\,\text{meters}$ of the *John Klein* lacustrine mudstone outcrop, the mast targets the target rock spot.
+* **Laser Pulse Vaporization**: Pressing `[SPACE]` fires a focused $1064\,\text{nm}$ pulsed beam, vaporizing a micro-spot on the rock and generating high-temperature glowing plasma sparks.
+* **Atomic Emission Spectrometer**: Each successful laser pulse collects optical emission spectra, progressively identifying elemental markers:
+  * **Hydrogen (H)** at $656\,\text{nm}$ (indicating hydrated clay minerals).
+  * **Silicon (Si)** at $288\,\text{nm}$ (silicate mudstone matrix).
+  * **Iron (Fe)** at $404\,\text{nm}$ (ferric oxides).
+  * **Magnesium (Mg)** at $518\,\text{nm}$ (magnesium sulfates).
+* **Audio Transients**: Web Audio API synthesized laser snap transients accompanied by resonant harmonic chimes upon unlocking each element.
 
-### 4. Diegetic 3D Spatial UI (`SpatialTelemetryTag.tsx`)
-* Attached directly to the rover's 3D hierarchy:
-  1. **Solar Array**: Photovoltaic voltage, solar flux, panel temperature, and dust deposition.
-  2. **Mastcam & Turret**: Azimuth/elevation joint angles, spectrometer status, and torque sensor readouts.
-* **Vector Crispness Proof**: Mounted via `@react-three/drei` `<Html center distanceFactor={12}>`. Because DOM elements render in the browser's 2D overlay layer above the WebGL `<canvas>`, text, borders, and animated SVG leader lines remain **100% sub-pixel sharp** regardless of whether the WebGL canvas is running at 10px pixelation or 0.35 DPR.
+---
+
+### 4. Picture-in-Picture (PiP) Historical Optical Sensor (`OpticalSensorPiP.tsx`)
+* **Mast-Mounted Secondary Camera**: Attaches a `THREE.PerspectiveCamera` (`fov={38}`) directly to Curiosity's Remote Sensing Mast (ChemCam head). The camera pans, pitches with the rover's chassis, and vibrates with driving engine harmonics.
+* **Dual Viewport WebGL Scissor Pipeline**: Renders offscreen to an FBO, applies era post-processing shaders via a fullscreen quad, and blits into the docked $360 \times 260\,\text{px}$ HUD window via `renderer.setViewport` and `renderer.setScissor`.
+* **Cross-DPR Parity**: Correctly computes CSS viewport offsets, ensuring perfect HUD alignment across $80\%$, $100\%$, $125\%$, and $150\%$ browser zoom levels on high-DPI displays.
+* **Era-Reactive Sensor Presets**:
+  * `[1] 1967 VIDICON TUBE`: Analog CRT curvature, 2-bit monochrome phosphor palette with $4 \times 4$ Bayer dithering, scanlines, and a 2-second ghosting wipe.
+  * `[2] 1997 CCD BUMPER CAM`: Barrel distortion, $160 \times 120$ quantized pixel grid, 16-bit RGB565 color quantization, sensor noise, and green NASA telemetry brackets.
+  * `[3] 2012 CHEMCAM LIBS TELESCOPE`: Thermal false-color highlights on mudstone targets, plasma flash bloom upon laser fire, telephoto vignette, and cyan fiducial crosshairs (`+`) with concentric rangefinder rings.
+
+---
+
+### 5. Flight Director 2D HUD & Telemetry Oscilloscope (`MissionHUD.tsx`)
+* **2-Minute MRO Orbital Countdown**: Simulates the fleeting communications pass of the Mars Reconnaissance Orbiter flying overhead.
+* **Four Mission Phases**:
+  1. `EXPLORING`: Traverse Gale Crater, avoid tire-puncturing rocks, and navigate to Yellowknife Bay.
+  2. `LASER_TARGETING`: Engage ChemCam telescope, acquire John Klein mudstone target, and fire 30 laser pulses to capture atomic spectra.
+  3. `ANTENNA_ALIGN`: High-Gain Antenna (HGA) gimbal mini-game aligning azimuth ($0^\circ - 360^\circ$) and elevation ($0^\circ - 90^\circ$) to lock with the orbiter.
+  4. `SOUL_TRANSFER_COMPLETE`: The camera pulls upward as a swirling particle beam ascends from Curiosity into space, uplinking its mission data before the relay window closes.
+* **Real-Time Telemetry Oscilloscope**: A custom 60fps HTML5 Canvas oscilloscope displaying live rolling waveforms:
+  * **MMRTG Core Temperature** (Amber curve: $180^\circ\text{C} - 240^\circ\text{C}$).
+  * **ChemCam Capacitor Charge** (Cyan curve: $0\% - 100\%$).
+  * **Aluminum Wheel Integrity** (Emerald curve: $0\% - 100\%$).
+
+---
+
+## User Controls & Hotkeys
+
+| Input | Action | System / Effect |
+| :--- | :--- | :--- |
+| **`W` / `↑`** | **Forward Throttle** | Accelerates rover forward ($5.5\,\text{m/s}$ nominal) |
+| **`S` / `↓`** | **Reverse Throttle** | Drives backward with reverse steering |
+| **`A` / `←`** | **Steer Left** | Turns front wheels left; counter-steers rear wheels |
+| **`D` / `→`** | **Steer Right** | Turns front wheels right; counter-steers rear wheels |
+| **`Shift`** | **High-Gear Boost** | Boosts forward speed up to $9.5\,\text{m/s}$ (increases MMRTG heat) |
+| **`Space`** | **Brake / ChemCam Fire** | In driving mode: hydraulic brake. In targeting mode: fires 1064nm laser |
+| **`1`** | **1967 Vidicon Preset** | Switches PiP feed to analog 2-bit Vidicon phosphor tube |
+| **`2`** | **1997 CCD Preset** | Switches PiP feed to 16-bit RGB565 Sojourner bumper cam |
+| **`3`** | **2012 ChemCam Preset** | Switches PiP feed to modern ChemCam telescope with cyan reticle |
+| **`C`** | **Toggle Telescope Zoom** | Switches between 3rd-person drone chase cam and ChemCam telescope |
+| **`R`** | **Mission Reset** | Resets rover position, timer, spectrometer data, and wheel integrity |
 
 ---
 
@@ -98,36 +136,42 @@ Driven reactively by a Leva dropdown with four historical spaceflight telemetry 
 
 ```
 e:\Nasa\Visual\
-├── index.html                     # HTML5 shell with JetBrains Mono font link
-├── package.json                   # Dependencies and npm scripts
-├── tsconfig.json                  # Strict TypeScript compiler options
-├── vite.config.ts                 # Vite bundler configuration
-├── tailwind.config.js             # Tailwind CSS theme with NASA palette
-├── postcss.config.js              # PostCSS plugins
-├── .gitignore                     # Git ignore rules
+├── index.html                           # HTML5 mount point with NASA JetBrains Mono typography
+├── package.json                         # Dependencies and build scripts
+├── tsconfig.json                        # Strict TypeScript compiler options
+├── vite.config.ts                       # Vite bundler configuration
+├── convert_stl_dem.py                   # Step 0B: Mars Trek STL to 256x256 DEM heightmap script
+├── raw_assets/
+│   └── trekSTL.stl                      # NASA Mars Trek Gale Crater 3D surface mesh
 ├── public/
+│   ├── terrains/
+│   │   ├── gale_crater_dem.png          # Normalized 8-bit DEM elevation heightmap
+│   │   ├── gale_crater_texture.png      # 1024x1024 hypsometric elevation texture with contours
+│   │   └── gale_crater_normal.png       # 1024x1024 surface relief tangent normal map
 │   └── models/
-│       └── README.md              # Drop-in directory for custom rover.glb
+│       └── curiosity.glb                # NASA Curiosity Rover 3D model
 └── src/
-    ├── main.tsx                   # React 18 DOM mount point
-    ├── App.tsx                    # Top-level orchestrator & Leva cyber theme config
-    ├── index.css                  # Tailwind styles & JetBrains Mono typography
-    ├── types/
-    │   └── era.ts                 # Era preset definitions and configuration types
+    ├── main.tsx                         # React 18 DOM mount point
+    ├── App.tsx                          # App orchestrator & layout container
+    ├── index.css                        # Tailwind CSS styles & scanline animations
+    ├── store/
+    │   └── useMissionStore.ts           # Zustand store (kinematics, MMRTG, wheels, mission phases)
     ├── utils/
-    │   ├── celShading.ts          # 4x1 DataTexture generator & hierarchy traverser
-    │   └── terrainGenerator.ts    # Multi-octave trigonometric crater displacement
+    │   ├── celShading.ts                # 4-band DataTexture LUT generator & material hierarchy traverser
+    │   ├── terrainMath.ts               # Bilinear DEM height sampling & 4-point suspension kinematics
+    │   ├── galeCraterDemData.ts         # Pre-baked 256x256 elevation array extracted from trekSTL.stl
+    │   ├── soundEngine.ts               # Web Audio API synthesizer (drive humming, laser snaps, chimes)
+    │   └── terrainSampler.ts            # Procedural fallback terrain generator
     └── components/
-        ├── canvas/
-        │   ├── RoverScene.tsx             # Primary 3D Canvas, OrbitControls & Perf
-        │   ├── ToonModelLoader.tsx        # GLTF loader + compound procedural rover fallback
-        │   ├── PlanetarySurface.tsx       # 200x200 Faceted Martian ochre crater terrain
-        │   ├── LightingAndAtmosphere.tsx  # Dynamic sun, rim lights, and era atmospheric fog
-        │   └── SpatialTelemetryTag.tsx    # Sharp diegetic vector DOM tags with SVG leader lines
-        ├── postprocessing/
-        │   └── EraPostProcessing.tsx      # Era pipeline (Pixelation, Scanline, Chroma, Vignette)
-        └── ui/
-            └── HudOverlay.tsx             # NASA JPL Mission Control 2D HUD layer
+        ├── GaleCraterTerrain.tsx        # 160x160 Martian ground mesh displaced by DEM + rock hazards
+        ├── CuriosityRover.tsx           # Rocker-bogie kinematics, MMRTG thermals, wheel damage
+        ├── ScienceMechanics.tsx         # ChemCam 1064nm laser, plasma sparks, soul-transfer beam
+        ├── OpticalSensorPiP.tsx         # Mast camera renderer & era post-processing PiP HUD window
+        ├── MissionHUD.tsx               # Flight Director HUD, 60fps Oscilloscope, Spectrometer, MRO timer
+        └── canvas/
+            ├── RoverScene.tsx           # Primary 3D Canvas, Lighting, Camera Director, and Landing Pad
+            ├── LightingAndAtmosphere.tsx# Sun lighting, ambient rim lights, and Martian atmospheric fog
+            └── DustTrail.tsx            # Regolith particle dust trails behind wheels
 ```
 
 ---
@@ -136,95 +180,52 @@ e:\Nasa\Visual\
 
 ### Prerequisites
 * [Node.js](https://nodejs.org/) v18.0.0 or higher
-* npm or pnpm
+* Python 3.8+ with `numpy` and `Pillow` (for the optional Step 0B DEM bake pipeline)
 
-### Installation
+### Installation & Local Development
 
 ```bash
-# Clone or navigate to the repository directory
-cd e:/Nasa/Visual
+# Clone the repository
+git clone https://github.com/Aravinda-05/Visual-Testing.git
+cd Visual-Testing
 
-# Install project dependencies
+# Install dependencies
 npm install
 
-# Start the Vite local development server
+# Start local development server
 npm run dev
 ```
 
 The application will be running at `http://localhost:5173`.
 
+### Running the Step 0B DEM Pipeline
+To regenerate the DEM heightmap and textures from the raw Mars Trek `.stl` file:
+
+```bash
+python convert_stl_dem.py
+```
+
 ### Production Build
 
 ```bash
-# Type check and generate production bundle in /dist
 npm run build
-
-# Preview the production build locally
 npm run preview
 ```
 
 ---
 
-## User Controls & Driving Interaction
-
-The rover is fully drivable across the 200m $\times$ 200m Martian crater terrain with real-time 6-wheel suspension conforming to slopes, dynamic steering knuckles, and animated tire rotation.
-
-### Keyboard & Touch Drive Mappings
-
-| Input | Action | Effect |
-| :--- | :--- | :--- |
-| **`W` / `Arrow Up`** | **Forward Throttle** | Accelerates forward up to $21\,\text{km/h}$ (or $38\,\text{km/h}$ on Boost) |
-| **`S` / `Arrow Down`** | **Reverse Throttle** | Drives in reverse with rear wheel rotation |
-| **`A` / `Arrow Left`** | **Steer Left** | Pivots front and rear steering knuckles into a banked left turn |
-| **`D` / `Arrow Right`** | **Steer Right** | Pivots front and rear steering knuckles into a banked right turn |
-| **`Shift`** | **High-Gear Boost** | Unlocks $38\,\text{km/h}$ exploration gear for climbing steep crater walls |
-| **`Space`** | **Active Brake** | Applies hydraulic deceleration ($15\,\text{m/s}^2$) |
-| **`R`** | **Re-center / Reset** | Teleports rover back to the leveled landing pad at $(0, 0)$ |
-| **`C`** | **Toggle Camera Mode** | Toggles between **Chase Cam (Follow)** and **Free Orbit Camera** |
-| **On-Screen D-Pad** | **Touch / Mouse Controls** | Click or touch the HUD D-Pad buttons at the bottom-right to drive |
-| **Mouse Orbit & Zoom** | **OrbitControls** | In Orbit Cam mode, pan, zoom, or orbit around the moving rover |
-
----
-
-## Kinematics & Suspension Engine
-
-* **Terrain Elevation Conformation**: In every frame, the rover samples ground height $Y = \text{sampleMartianElevation}(x, z)$ so the wheels remain solidly planted on the surface with zero floating.
-* **4-Point Slope Probing (Pitch & Roll)**: Probes $Y$ elevations at the front axle, rear axle, port wheels, and starboard wheels to calculate pitch ($\theta$) and roll ($\phi$), smoothly tilting the chassis over rocky crater terraces and dune slopes.
-* **4-Wheel Independent Steering**: Front wheels turn in the direction of the turn, while rear wheels counter-steer at 70% angle (modeling NASA Curiosity / Perseverance rocker-bogie steering) to enable tight cornering and zero-radius pivot spins.
-* **Regolith Dust Trail**: Emits low-poly cel-shaded Martian ochre dust puffs behind the wheels proportional to vehicle speed.
-* **Live Diegetic Telemetry**: The two 3D spatial callouts directly reflect live driving telemetry: speed in $\text{km/h}$, motor load in Amperes, steering angle, inclinometer tilt degrees, and total distance traveled.
-
----
-
-## Loading a Custom 3D Model
-
-To test your own 3D rover model:
-1. Export your 3D rover as a standard `.glb` file.
-2. Place it in `public/models/rover.glb`.
-3. In the Leva GUI, set **Model Source** to `Custom GLTF (/models/rover.glb)`.
-4. The loader automatically:
-   * Replaces all meshes with 4-band `MeshToonMaterial`.
-   * Preserves diffuse maps and colors.
-   * Calculates bounding boxes to ground the model at $Y = 0.00\text{m}$.
-   * Applies comic ink outlines and shadow casting/receiving.
-
----
-
-## Tech Stack & Libraries
+## Technical Stack & Libraries
 
 * **Framework**: React 18 + Vite 5 + TypeScript 5
-* **3D Engine**: Three.js (r169)
-* **Canvas React Wrapper**: `@react-three/fiber` (v8)
-* **Three Helpers**: `@react-three/drei` (v9)
-* **Post-Processing**: `postprocessing` (v6) + `@react-three/postprocessing` (v2)
-* **Debug GUI**: `leva` (v0.9)
-* **Diagnostics**: `r3f-perf` (v7)
-* **Icons**: `lucide-react`
+* **3D Graphics Engine**: Three.js (r169)
+* **React 3D Ecosystem**: `@react-three/fiber` (v8) + `@react-three/drei` (v9)
+* **State Management**: `zustand` (v5)
+* **Audio Synthesis**: Native Web Audio API (procedural brown noise, square wave transients, pentatonic chimes)
+* **Icons & UI**: `lucide-react`
 * **Styling**: Tailwind CSS (v3) + Google Fonts (*JetBrains Mono*)
 
 ---
 
 ## License
 
-MIT License. Designed for NASA JPL visual style feasibility and WebGL rendering research.
-
+MIT License. Designed for NASA JPL visual style feasibility and WebGL planetary simulation research.

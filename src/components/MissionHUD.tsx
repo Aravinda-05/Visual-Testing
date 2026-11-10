@@ -147,6 +147,9 @@ export const MissionHUD: React.FC = () => {
             <span className="text-[9px] px-1 py-0.2 rounded bg-cyan-950 border border-cyan-400 text-cyan-200">
               GALE CRATER
             </span>
+            <span className="text-[9px] px-1 py-0.2 rounded bg-emerald-950/80 border border-emerald-400 text-emerald-300 font-bold">
+              MARS TREK DEM
+            </span>
           </div>
 
           <div className="flex items-center gap-2 text-[10px] text-slate-300 mb-1.5">

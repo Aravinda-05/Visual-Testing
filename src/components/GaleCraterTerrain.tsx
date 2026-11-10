@@ -12,9 +12,24 @@ export const GaleCraterTerrain: React.FC = () => {
   const setCameraMode = useMissionStore((s) => s.setCameraMode);
   const setMissionPhase = useMissionStore((s) => s.setMissionPhase);
 
-  // 1. Procedural 200x200 Faceted Plane Geometry
+  // Load NASA Mars Trek photorealistic hypsometric color map and normal relief map
+  const { colorMap, normalMap } = useMemo(() => {
+    const loader = new THREE.TextureLoader();
+    const color = loader.load('/terrains/gale_crater_texture.png');
+    color.wrapS = THREE.ClampToEdgeWrapping;
+    color.wrapT = THREE.ClampToEdgeWrapping;
+    color.colorSpace = THREE.SRGBColorSpace;
+
+    const normal = loader.load('/terrains/gale_crater_normal.png');
+    normal.wrapS = THREE.ClampToEdgeWrapping;
+    normal.wrapT = THREE.ClampToEdgeWrapping;
+
+    return { colorMap: color, normalMap: normal };
+  }, []);
+
+  // 1. NASA Mars Trek DEM 200x200 Plane Geometry (160x160 resolution = 25,600 surface quads)
   const terrainGeometry = useMemo(() => {
-    const baseGeo = new THREE.PlaneGeometry(200, 200, 128, 128);
+    const baseGeo = new THREE.PlaneGeometry(200, 200, 160, 160);
     const posAttr = baseGeo.attributes.position;
     const vertex = new THREE.Vector3();
 
@@ -33,17 +48,20 @@ export const GaleCraterTerrain: React.FC = () => {
     return nonIndexed;
   }, []);
 
-  // Terrain Toon Material in Martian ochre with flatShading
+  // Terrain Toon Material with NASA Mars Trek DEM texture & normal map
   const terrainMaterial = useMemo(() => {
     const mat = new THREE.MeshToonMaterial({
-      color: '#C85A32',
+      map: colorMap,
+      normalMap: normalMap,
+      normalScale: new THREE.Vector2(1.4, 1.4),
+      color: '#FFFFFF', // Tint white so the rich Martian texture shines through fully
       gradientMap,
     });
     (mat as unknown as { flatShading: boolean }).flatShading = true;
     mat.defines = { ...mat.defines, FLAT_SHADED: '' };
     mat.needsUpdate = true;
     return mat;
-  }, [gradientMap]);
+  }, [colorMap, normalMap, gradientMap]);
 
   // Dark basalt rock material for ventifact hazards
   const rockMaterial = useMemo(() => {
