@@ -17,8 +17,9 @@
 import React, { useMemo, useRef, useState, useEffect } from 'react';
 import * as THREE from 'three';
 import { useFrame, useThree } from '@react-three/fiber';
-import { Html, OrbitControls } from '@react-three/drei';
+import { Html, OrbitControls, Outlines } from '@react-three/drei';
 import { getFourStepGradientMap } from '../utils/celShading';
+import { createStylizedPlanetTextures } from '../utils/stylizePlanetTexture';
 import { useMissionStore } from '../store/useMissionStore';
 import { soundEngine } from '../utils/soundEngine';
 import { Radio, MapPin, Sparkles, Navigation, Globe, ArrowDown, ExternalLink } from 'lucide-react';
@@ -249,7 +250,17 @@ function createProceduralMarsCanvas(isBump = false): HTMLCanvasElement {
 }
 
 export const OrbitalMuseumGlobe: React.FC = () => {
-  const gradientMap = useMemo(() => getFourStepGradientMap(), []);
+  // 4-Step NearestFilter DataTexture for comic graphic novel lighting steps [65, 130, 195, 255]
+  const gradientMap = useMemo(() => {
+    const steps = new Uint8Array([65, 130, 195, 255]);
+    const texture = new THREE.DataTexture(steps, 4, 1, THREE.RedFormat);
+    texture.minFilter = THREE.NearestFilter;
+    texture.magFilter = THREE.NearestFilter;
+    texture.generateMipmaps = false;
+    texture.needsUpdate = true;
+    return texture;
+  }, []);
+
   const globeGroupRef = useRef<THREE.Group>(null);
   const globeMeshRef = useRef<THREE.Mesh>(null);
 
@@ -259,11 +270,12 @@ export const OrbitalMuseumGlobe: React.FC = () => {
   const [activePinId, setActivePinId] = useState<string | null>('curiosity');
   const [isHovered, setIsHovered] = useState(false);
 
-  // Load NASA Equirectangular textures with robust procedural canvas fallback
-  const { albedoTex, bumpTex } = useMemo(() => {
-    const loader = new THREE.TextureLoader();
-
-    // Procedural in-memory fallback canvases
+  // Initialize with procedural fallback canvas textures, then asynchronously swap
+  // with the 6-band quantized, contour-inked Moebius texture from /textures/2k_mars.jpg
+  const [textures, setTextures] = useState<{
+    map: THREE.Texture;
+    bumpMap: THREE.Texture;
+  }>(() => {
     const fallbackAlbedoCanvas = createProceduralMarsCanvas(false);
     const fallbackBumpCanvas = createProceduralMarsCanvas(true);
 
@@ -276,53 +288,66 @@ export const OrbitalMuseumGlobe: React.FC = () => {
     fallbackBumpTex.wrapS = THREE.RepeatWrapping;
     fallbackBumpTex.wrapT = THREE.ClampToEdgeWrapping;
 
-    // Attempt loading real static textures
-    let alb: THREE.Texture = fallbackAlbedoTex;
-    let bmp: THREE.Texture = fallbackBumpTex;
+    return {
+      map: fallbackAlbedoTex,
+      bumpMap: fallbackBumpTex,
+    };
+  });
 
-    try {
-      alb = loader.load(
-        '/textures/mars_albedo_2k.jpg',
-        (loadedTex) => {
-          loadedTex.colorSpace = THREE.SRGBColorSpace;
-          loadedTex.wrapS = THREE.RepeatWrapping;
-          loadedTex.wrapT = THREE.ClampToEdgeWrapping;
-        },
-        undefined,
-        () => {
-          console.info('[OrbitalGlobe] Using procedural Mars Albedo fallback canvas.');
-        }
-      );
+  useEffect(() => {
+    let isMounted = true;
 
-      bmp = loader.load(
-        '/textures/mars_mola_bump_2k.png',
-        (loadedTex) => {
-          loadedTex.wrapS = THREE.RepeatWrapping;
-          loadedTex.wrapT = THREE.ClampToEdgeWrapping;
-        },
-        undefined,
-        () => {
-          console.info('[OrbitalGlobe] Using procedural Mars MOLA Bump fallback canvas.');
-        }
-      );
-    } catch {
-      // Retain fallback textures
+    async function loadStylizedSurfaces() {
+      try {
+        const stylizedResult = await createStylizedPlanetTextures('/textures/2k_mars.jpg', 'MARS');
+
+        // Attempt loading real static bump texture, falling back to pre-quantized luminance buffer
+        const loader = new THREE.TextureLoader();
+        loader.load(
+          '/textures/mars_bump_2k.jpg',
+          (loadedBump) => {
+            loadedBump.wrapS = THREE.RepeatWrapping;
+            loadedBump.wrapT = THREE.ClampToEdgeWrapping;
+            if (isMounted) {
+              setTextures({
+                map: stylizedResult.map,
+                bumpMap: loadedBump,
+              });
+            }
+          },
+          undefined,
+          () => {
+            if (isMounted) {
+              setTextures({
+                map: stylizedResult.map,
+                bumpMap: stylizedResult.bumpMap,
+              });
+            }
+          }
+        );
+      } catch (err) {
+        console.warn('[OrbitalMuseumGlobe] Error generating stylized Mars texture:', err);
+      }
     }
 
-    return { albedoTex: alb, bumpTex: bmp };
+    loadStylizedSurfaces();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
-  // Globe Toon Material with NASA Equirectangular maps
+  // Globe Toon Material with NASA Equirectangular maps and bumpScale = 0.045
   const globeMaterial = useMemo(() => {
     const mat = new THREE.MeshToonMaterial({
-      map: albedoTex,
-      bumpMap: bumpTex,
-      bumpScale: 0.05,
+      map: textures.map,
+      bumpMap: textures.bumpMap,
+      bumpScale: 0.045,
       gradientMap,
       color: '#FFFFFF',
     });
     return mat;
-  }, [albedoTex, bumpTex, gradientMap]);
+  }, [textures, gradientMap]);
 
   // Atmospheric Glow Material (Thin rim Fresnel shell)
   const atmosphereMaterial = useMemo(() => {
@@ -368,6 +393,7 @@ export const OrbitalMuseumGlobe: React.FC = () => {
       {/* 1. Planetary Sphere Geometry with NASA MOLA Topography */}
       <mesh ref={globeMeshRef} material={globeMaterial} castShadow receiveShadow>
         <sphereGeometry args={[GLOBE_RADIUS, 64, 64]} />
+        <Outlines thickness={0.025} color="#090d16" />
       </mesh>
 
       {/* 2. Atmospheric Rim Shell */}
