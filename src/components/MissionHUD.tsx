@@ -1,5 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import { useMissionStore } from '../store/useMissionStore';
+import { useApolloMissionStore } from '../store/useApolloMissionStore';
 import { soundEngine } from '../utils/soundEngine';
 import { OpticalSensorPiP } from './OpticalSensorPiP';
 import { HotspotInspectionCard } from './RoverHotspots';
@@ -50,6 +51,13 @@ export const MissionHUD: React.FC = () => {
   const activeLevel = useMissionStore((s) => s.activeLevel);
   const setActiveLevel = useMissionStore((s) => s.setActiveLevel);
   const setActiveTier = useMissionStore((s) => s.setActiveTier);
+
+  // Apollo 11 store selectors
+  const apolloCameraMode = useApolloMissionStore((s) => s.cameraMode);
+  const setApolloCameraMode = useApolloMissionStore((s) => s.setCameraMode);
+  const cycleApolloCameraMode = useApolloMissionStore((s) => s.cycleCameraMode);
+  const apolloViewMode = useApolloMissionStore((s) => s.viewMode);
+  const setApolloViewMode = useApolloMissionStore((s) => s.setViewMode);
   const toggleTier = useMissionStore((s) => s.toggleTier);
   const discoveredLandmarks = useMissionStore((s) => s.discoveredLandmarks);
   const codexXp = useMissionStore((s) => s.codexXp);
@@ -243,38 +251,77 @@ export const MissionHUD: React.FC = () => {
           {/* Camera POV Switcher (Follow 3rd Person vs Free Roam Orbit) */}
           <div className="flex items-center gap-1.5 my-1.5 pt-1.5 border-t border-slate-800">
             <span className="text-[8px] text-slate-400 font-bold uppercase tracking-wider">POV:</span>
-            <div className="flex items-center rounded bg-black/60 border border-slate-800 p-0.5 gap-1">
-              <button
-                onClick={() => {
-                  setCameraMode('THIRD_PERSON_DRONE');
-                  soundEngine.playUiBlip();
-                }}
-                className={`px-2 py-0.5 rounded text-[8px] font-bold transition-all ${
-                  cameraMode === 'THIRD_PERSON_DRONE'
-                    ? 'bg-cyan-500 text-black shadow-[0_0_8px_rgba(0,240,255,0.4)]'
-                    : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                FOLLOW (3RD)
-              </button>
-              <button
-                onClick={() => {
-                  setCameraMode('FREE_ORBIT');
-                  soundEngine.playUiBlip();
-                }}
-                className={`px-2 py-0.5 rounded text-[8px] font-bold transition-all ${
-                  cameraMode === 'FREE_ORBIT'
-                    ? 'bg-amber-400 text-black shadow-[0_0_8px_rgba(251,191,36,0.4)]'
-                    : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                FREE ROAM
-              </button>
-            </div>
+            {activeLevel === 'LEVEL_1_APOLLO_11' ? (
+              <div className="flex items-center rounded bg-black/60 border border-slate-800 p-0.5 gap-1">
+                <button
+                  onClick={() => setApolloCameraMode('THIRD_PERSON_HERO')}
+                  className={`px-2 py-0.5 rounded text-[8px] font-bold transition-all ${
+                    apolloCameraMode === 'THIRD_PERSON_HERO'
+                      ? 'bg-cyan-500 text-black shadow-[0_0_8px_rgba(0,240,255,0.4)]'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  HERO (3RD)
+                </button>
+                <button
+                  onClick={() => setApolloCameraMode('FREE_ORBIT')}
+                  className={`px-2 py-0.5 rounded text-[8px] font-bold transition-all ${
+                    apolloCameraMode === 'FREE_ORBIT'
+                      ? 'bg-amber-400 text-black shadow-[0_0_8px_rgba(251,191,36,0.4)]'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  FREE ROAM
+                </button>
+                <button
+                  onClick={() => setApolloCameraMode('MESA_TV_CAM')}
+                  className={`px-2 py-0.5 rounded text-[8px] font-bold transition-all ${
+                    apolloCameraMode === 'MESA_TV_CAM'
+                      ? 'bg-emerald-400 text-black shadow-[0_0_8px_rgba(16,185,129,0.4)]'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  MESA TV
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center rounded bg-black/60 border border-slate-800 p-0.5 gap-1">
+                <button
+                  onClick={() => {
+                    setCameraMode('THIRD_PERSON_DRONE');
+                    soundEngine.playUiBlip();
+                  }}
+                  className={`px-2 py-0.5 rounded text-[8px] font-bold transition-all ${
+                    cameraMode === 'THIRD_PERSON_DRONE'
+                      ? 'bg-cyan-500 text-black shadow-[0_0_8px_rgba(0,240,255,0.4)]'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  FOLLOW (3RD)
+                </button>
+                <button
+                  onClick={() => {
+                    setCameraMode('FREE_ORBIT');
+                    soundEngine.playUiBlip();
+                  }}
+                  className={`px-2 py-0.5 rounded text-[8px] font-bold transition-all ${
+                    cameraMode === 'FREE_ORBIT'
+                      ? 'bg-amber-400 text-black shadow-[0_0_8px_rgba(251,191,36,0.4)]'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  FREE ROAM
+                </button>
+              </div>
+            )}
             <button
               onClick={() => {
-                cycleCameraMode();
-                soundEngine.playUiBlip();
+                if (activeLevel === 'LEVEL_1_APOLLO_11') {
+                  cycleApolloCameraMode();
+                } else {
+                  cycleCameraMode();
+                  soundEngine.playUiBlip();
+                }
               }}
               className="text-[8px] text-slate-400 hover:text-cyan-300 ml-auto transition-colors"
               title="Press [C] to cycle Camera POV"
@@ -289,11 +336,14 @@ export const MissionHUD: React.FC = () => {
             <div className="flex items-center rounded bg-black/60 border border-slate-800 p-0.5 gap-1">
               <button
                 onClick={() => {
+                  if (activeLevel === 'LEVEL_1_APOLLO_11') {
+                    setApolloViewMode('SURFACE_SANDBOX');
+                  }
                   setActiveTier('SURFACE_SANDBOX');
                   soundEngine.playUiBlip();
                 }}
                 className={`px-2 py-0.5 rounded text-[8px] font-bold transition-all ${
-                  activeTier === 'SURFACE_SANDBOX'
+                  (activeLevel === 'LEVEL_1_APOLLO_11' ? apolloViewMode !== 'ORBITAL_GLOBE' : activeTier === 'SURFACE_SANDBOX')
                     ? 'bg-cyan-500 text-black shadow-[0_0_8px_rgba(0,240,255,0.4)]'
                     : 'text-slate-400 hover:text-white'
                 }`}
@@ -302,11 +352,14 @@ export const MissionHUD: React.FC = () => {
               </button>
               <button
                 onClick={() => {
+                  if (activeLevel === 'LEVEL_1_APOLLO_11') {
+                    setApolloViewMode('ORBITAL_GLOBE');
+                  }
                   setActiveTier('ORBITAL_MUSEUM');
                   soundEngine.playUiBlip();
                 }}
                 className={`px-2 py-0.5 rounded text-[8px] font-bold transition-all ${
-                  activeTier === 'ORBITAL_MUSEUM'
+                  (activeLevel === 'LEVEL_1_APOLLO_11' ? apolloViewMode === 'ORBITAL_GLOBE' : activeTier === 'ORBITAL_MUSEUM')
                     ? 'bg-amber-400 text-black shadow-[0_0_8px_rgba(251,191,36,0.4)]'
                     : 'text-slate-400 hover:text-white'
                 }`}
@@ -316,7 +369,11 @@ export const MissionHUD: React.FC = () => {
             </div>
             <button
               onClick={() => {
-                toggleTier();
+                if (activeLevel === 'LEVEL_1_APOLLO_11') {
+                  setApolloViewMode(apolloViewMode === 'ORBITAL_GLOBE' ? 'SURFACE_SANDBOX' : 'ORBITAL_GLOBE');
+                } else {
+                  toggleTier();
+                }
                 soundEngine.playUiBlip();
               }}
               className="text-[8px] text-slate-400 hover:text-cyan-300 ml-auto transition-colors"

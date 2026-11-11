@@ -18,6 +18,8 @@ export type ApolloViewMode =
   | 'SURFACE_SANDBOX'
   | 'SOUL_TRANSFER_ASCENT';
 
+export type ApolloCameraMode = 'THIRD_PERSON_HERO' | 'FREE_ORBIT' | 'MESA_TV_CAM';
+
 export type ApolloInstrument =
   | 'WESTINGHOUSE_TV'
   | 'LRRR_LASER_ARRAY'
@@ -27,6 +29,7 @@ export type ApolloInstrument =
 export interface ApolloMissionState {
   // View & Transition State
   viewMode: ApolloViewMode;
+  cameraMode: ApolloCameraMode;
   selectedPinId: string | null;
   cursorCoords: { lat: number; lon: number } | null;
   descentProgress: number; // 0 to 1 during transition beam
@@ -60,6 +63,8 @@ export interface ApolloMissionState {
 
   // Actions
   setViewMode: (mode: ApolloViewMode) => void;
+  setCameraMode: (mode: ApolloCameraMode) => void;
+  cycleCameraMode: () => void;
   setSelectedPinId: (id: string | null) => void;
   setCursorCoords: (coords: { lat: number; lon: number } | null) => void;
   panCamera: (dAzimuth: number, dElevation: number) => void;
@@ -79,7 +84,8 @@ export interface ApolloMissionState {
 }
 
 const INITIAL_STATE = {
-  viewMode: 'ORBITAL_GLOBE' as ApolloViewMode,
+  viewMode: 'SURFACE_SANDBOX' as ApolloViewMode,
+  cameraMode: 'THIRD_PERSON_HERO' as ApolloCameraMode,
   selectedPinId: 'APOLLO_11',
   cursorCoords: { lat: 0.6741, lon: 23.473 },
   descentProgress: 0.0,
@@ -117,6 +123,19 @@ export const useApolloMissionStore = create<ApolloMissionState>((set, get) => ({
   ...INITIAL_STATE,
 
   setViewMode: (mode) => set({ viewMode: mode }),
+
+  setCameraMode: (mode) => {
+    soundEngine.playUiBlip();
+    set({ cameraMode: mode });
+  },
+
+  cycleCameraMode: () => {
+    soundEngine.playUiBlip();
+    const modes: ApolloCameraMode[] = ['THIRD_PERSON_HERO', 'FREE_ORBIT', 'MESA_TV_CAM'];
+    const curIdx = modes.indexOf(get().cameraMode);
+    const nextMode = modes[(curIdx + 1) % modes.length];
+    set({ cameraMode: nextMode });
+  },
 
   setSelectedPinId: (id) => set({ selectedPinId: id }),
 

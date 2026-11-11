@@ -4,44 +4,32 @@
  * Implements:
  * 1. Pitch-black space sky, harsh directional sunlight (intensity 2.8), and zero atmospheric fog.
  * 2. Faceted DEM terrain with lunar silver-slate vertex coloring and 10m survey contour grid.
- * 3. Hero NASA Apollo 11 Lunar Module (Eagle) loading /models/apollo_lm.glb with PBR Kapton gold
- *    foil, aluminum struts, <Outlines thickness={0.015} color="#05080F" />, and procedural fallback.
- * 4. 6 Clickable 3D Hardware Hotspots with spatial cards.
+ * 3. Hero NASA Apollo 11 Lunar Module (Eagle) loading /models/apollo_lm.glb via useGLTF with Suspense,
+ *    PBR Kapton gold foil, aluminum struts, <Outlines thickness={0.015} color="#05080F" />, and procedural fallback.
+ * 4. 6 Prominent 3D & HTML Hardware Hotspots located on the ship (un-occluded, always visible).
  * 5. 3-Site Scientific Triangulation: Footpad Bearing, West Crater Basalt, and LRRR Laser Lock.
  * 6. Historical Fault: Electrostatic dust clearing ([F]) + Sun-angle prism tray leveling ([Q/E]).
- * 7. 1969 Westinghouse Slow-Scan TV Camera & Oscilloscope PiP HUD feed.
- * 8. 2-Step Kid-Friendly Buddy Hint Engine overlay.
- * 9. S-Band Dish Earth-Alignment ([T]) and Soul-Transfer Ascent Beam.
+ * 7. Multi-POV Camera Engine: 3rd-Person Hero Vista & Free Roam Orbit around the LM, plus MESA TV Cam ([C]).
+ * 8. 1969 Westinghouse Slow-Scan TV Camera & Oscilloscope PiP HUD feed.
+ * 9. 2-Step Kid-Friendly Buddy Hint Engine overlay.
+ * 10. S-Band Dish Earth-Alignment ([T]) and Soul-Transfer Ascent Beam.
  */
 
-import React, { useMemo, useRef, useState, useEffect } from 'react';
+import React, { useMemo, useRef, useState, useEffect, Suspense } from 'react';
 import * as THREE from 'three';
 import { useFrame, useThree } from '@react-three/fiber';
-import { useGLTF, Html, Outlines, Environment, Stars, Grid } from '@react-three/drei';
+import { useGLTF, Html, Outlines, Environment, Stars, Grid, OrbitControls } from '@react-three/drei';
+import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import {
   getLunarTerrainHeight,
-  getLunarTerrainNormal,
   LUNAR_LANDMARKS,
-  LunarLandmark,
 } from '../utils/lunarTerrainSampler';
-import { useApolloMissionStore, ApolloInstrument } from '../store/useApolloMissionStore';
+import { useApolloMissionStore } from '../store/useApolloMissionStore';
 import { soundEngine } from '../utils/soundEngine';
-import {
-  Radio,
-  Tv,
-  Zap,
-  Target,
-  CheckCircle2,
-  AlertTriangle,
-  RotateCcw,
-  Sparkles,
-  Compass,
-  ArrowUp,
-  HelpCircle,
-  Eye,
-  Layers,
-  Award,
-} from 'lucide-react';
+import { Tv, Sparkles, Camera, Compass } from 'lucide-react';
+
+// Preload the NASA Apollo Lunar Module model
+useGLTF.preload('/models/apollo_lm.glb');
 
 // ==========================================
 // 1. Faceted DEM Terrain with Vertex Colors
@@ -60,7 +48,6 @@ export const LunarDemTerrain: React.FC = () => {
     const posAttr = geom.attributes.position;
     const colors: number[] = [];
 
-    // Color swatches for lunar topographic strata
     const colorDeepBasalt = new THREE.Color('#4D5562');
     const colorLowMare = new THREE.Color('#6E7785');
     const colorPlains = new THREE.Color('#9BA4B2');
@@ -73,7 +60,6 @@ export const LunarDemTerrain: React.FC = () => {
       const y = getLunarTerrainHeight(x, z);
       posAttr.setY(i, y);
 
-      // Vertex color blending based on elevation
       const tempColor = new THREE.Color();
       if (y < -2.5) {
         tempColor.copy(colorDeepBasalt);
@@ -126,195 +112,224 @@ export const LunarDemTerrain: React.FC = () => {
 };
 
 // ==========================================
-// 2. Apollo Lunar Module (Eagle) Loader
+// 2. Procedural Fallback Geometry
 // ==========================================
-export const ApolloLMModel: React.FC = () => {
-  const [loadError, setLoadError] = useState(false);
+function ProceduralApolloLMFallback() {
+  const terrainY = getLunarTerrainHeight(0, 0);
 
-  // Attempt to load GLB model from /models/apollo_lm.glb
-  let gltf: any = null;
-  try {
-    gltf = useGLTF('/models/apollo_lm.glb');
-  } catch {
-    // Graceful fallback to procedural geometry
-    if (!loadError) setLoadError(true);
-  }
+  return (
+    <group position={[0, terrainY, 0]}>
+      {/* Octagonal Descent Stage Gold Foil */}
+      <mesh position={[0, 1.2, 0]} castShadow receiveShadow>
+        <cylinderGeometry args={[2.2, 2.4, 1.6, 8]} />
+        <meshStandardMaterial color="#D4AF37" metalness={0.85} roughness={0.25} />
+        <Outlines thickness={0.015} color="#05080F" />
+      </mesh>
 
-  const modelScene = useMemo(() => {
-    if (!gltf || !gltf.scene) return null;
-    const clone = gltf.scene.clone();
+      {/* Ascent Stage Cabin */}
+      <mesh position={[0, 2.7, 0]} castShadow receiveShadow>
+        <boxGeometry args={[2.2, 1.8, 2.2]} />
+        <meshStandardMaterial color="#88929E" metalness={0.7} roughness={0.35} />
+        <Outlines thickness={0.015} color="#05080F" />
+      </mesh>
 
-    // Traverse and ensure shadows without overwriting NASA PBR textures
+      {/* 4 Landing Legs and Footpads */}
+      {[0, 1, 2, 3].map((i) => {
+        const angle = (i * Math.PI) / 2 + Math.PI / 4;
+        const lx = Math.cos(angle) * 3.2;
+        const lz = Math.sin(angle) * 3.2;
+        return (
+          <group key={i} position={[0, 0, 0]}>
+            <mesh position={[lx * 0.5, 0.6, lz * 0.5]} castShadow>
+              <cylinderGeometry args={[0.06, 0.06, 1.8, 8]} />
+              <meshStandardMaterial color="#657182" metalness={0.9} roughness={0.2} />
+            </mesh>
+            <mesh position={[lx, 0.1, lz]} castShadow receiveShadow>
+              <cylinderGeometry args={[0.45, 0.45, 0.1, 16]} />
+              <meshStandardMaterial color="#D4AF37" metalness={0.8} roughness={0.3} />
+              <Outlines thickness={0.015} color="#05080F" />
+            </mesh>
+          </group>
+        );
+      })}
+    </group>
+  );
+}
+
+// ==========================================
+// 3. GLTF Loader Component for apollo_lm.glb
+// ==========================================
+function GLTFApolloLMModel() {
+  const { scene } = useGLTF('/models/apollo_lm.glb');
+  const terrainY = getLunarTerrainHeight(0, 0);
+
+  const clonedScene = useMemo(() => {
+    const clone = scene.clone(true);
     clone.traverse((child: any) => {
       if (child.isMesh) {
         child.castShadow = true;
         child.receiveShadow = true;
       }
     });
-
     return clone;
-  }, [gltf]);
+  }, [scene]);
 
-  const terrainY = getLunarTerrainHeight(0, 0);
-
-  // Procedural fallback LM if external GLB cannot be rendered
-  if (loadError || !modelScene) {
-    return (
-      <group position={[0, terrainY, 0]}>
-        {/* Octagonal Descent Stage Gold Foil */}
-        <mesh position={[0, 1.2, 0]} castShadow receiveShadow>
-          <cylinderGeometry args={[2.2, 2.4, 1.6, 8]} />
-          <meshStandardMaterial color="#D4AF37" metalness={0.85} roughness={0.25} />
-          <Outlines thickness={0.015} color="#05080F" />
-        </mesh>
-
-        {/* Ascent Stage Cabin */}
-        <mesh position={[0, 2.7, 0]} castShadow receiveShadow>
-          <boxGeometry args={[2.2, 1.8, 2.2]} />
-          <meshStandardMaterial color="#88929E" metalness={0.7} roughness={0.35} />
-          <Outlines thickness={0.015} color="#05080F" />
-        </mesh>
-
-        {/* 4 Landing Legs and Footpads */}
-        {[0, 1, 2, 3].map((i) => {
-          const angle = (i * Math.PI) / 2 + Math.PI / 4;
-          const lx = Math.cos(angle) * 3.2;
-          const lz = Math.sin(angle) * 3.2;
-          return (
-            <group key={i} position={[0, 0, 0]}>
-              <mesh position={[lx * 0.5, 0.6, lz * 0.5]} castShadow>
-                <cylinderGeometry args={[0.06, 0.06, 1.8, 8]} />
-                <meshStandardMaterial color="#657182" metalness={0.9} roughness={0.2} />
-              </mesh>
-              {/* Footpad */}
-              <mesh position={[lx, 0.1, lz]} castShadow receiveShadow>
-                <cylinderGeometry args={[0.45, 0.45, 0.1, 16]} />
-                <meshStandardMaterial color="#D4AF37" metalness={0.8} roughness={0.3} />
-                <Outlines thickness={0.015} color="#05080F" />
-              </mesh>
-            </group>
-          );
-        })}
-      </group>
-    );
-  }
-
+  // Base of footpads in model coordinates is at Y ≈ 0.10, so offset to touch terrain
   return (
-    <group position={[0, terrainY, 0]} scale={[1.0, 1.0, 1.0]}>
-      <primitive object={modelScene} />
+    <group position={[0, terrainY - 0.10, 0]}>
+      <primitive object={clonedScene} />
       <Outlines thickness={0.015} color="#05080F" />
     </group>
+  );
+}
+
+class LMErrorBoundary extends React.Component<
+  { fallback: React.ReactNode; children: React.ReactNode },
+  { hasError: boolean }
+> {
+  state = { hasError: false };
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: any) {
+    console.warn('[ApolloLMModel] Falling back to procedural geometry:', error);
+  }
+
+  render() {
+    if (this.state.hasError) return this.props.fallback;
+    return this.props.children;
+  }
+}
+
+export const ApolloLMModel: React.FC = () => {
+  return (
+    <LMErrorBoundary fallback={<ProceduralApolloLMFallback />}>
+      <Suspense fallback={<ProceduralApolloLMFallback />}>
+        <GLTFApolloLMModel />
+      </Suspense>
+    </LMErrorBoundary>
   );
 };
 
 // ==========================================
-// 3. 6 Clickable NASA Hardware Hotspots
+// 4. 6 Prominent 3D & HTML Hardware Hotspots
 // ==========================================
-export interface HardwareHotspotData {
-  id: string;
-  name: string;
-  pos: [number, number, number];
-  title: string;
-  specs: string;
-  description: string;
-}
-
-export const HARDWARE_HOTSPOTS: HardwareHotspotData[] = [
-  {
-    id: 'kapton_foil',
-    name: 'Multi-Layer Kapton Thermal Blanket',
-    pos: [0, 1.4, 1.5],
-    title: 'Kapton & Mylar Radiation Foil',
-    specs: '25 Layers Aluminized Mylar // +120°C to -170°C Rating',
-    description: 'Crinkled gold and amber Kapton sheets isolated the ascent engine and cabin from direct solar radiation in the airless lunar vacuum.',
-  },
-  {
-    id: 'landing_gear',
-    name: 'Aluminum Honeycomb Landing Strut',
-    pos: [-2.6, 0.25, 2.6],
-    title: 'Crushable Honeycomb Shock Absorber',
-    specs: 'Compressible Cartridge // 1.7m Lunar Contact Probe',
-    description: 'Deformable aluminum honeycomb absorbed vertical impact velocity. Blue "CONTACT LIGHT" illuminated when the 1.7m wire probe touched soil.',
-  },
-  {
-    id: 'mesa_tv',
-    name: 'MESA & Westinghouse Slow-Scan TV',
-    pos: [-1.6, 1.3, 1.8],
-    title: 'Modular Equipment Stowage Assembly (MESA)',
-    specs: '10 fps // 320 lines monochrome // 228MHz VHF Relay',
-    description: 'Mounted inside Quad 4 of the descent stage. Neil Armstrong pulled a lanyard on the ladder porch to deploy the camera and broadcast humanity\'s first steps.',
-  },
-  {
-    id: 'lrrr_array',
-    name: 'Laser Ranging Retroreflector (LRRR)',
-    pos: [4.5, 0.2, 6.0],
-    title: '100 Fused-Silica Corner Cube Prisms',
-    specs: '384,400km Baseline // 2.56s Light Return // 532nm Nd:YAG',
-    description: 'Corner-cube prisms reflect green Earth laser pulses exactly back along their path of arrival, measuring the Moon\'s 3.8 cm/year orbital recession.',
-  },
-  {
-    id: 'psep_seismic',
-    name: 'Passive Seismic Experiment Package (PSEP)',
-    pos: [-5.0, 0.2, 5.5],
-    title: 'First Extraterrestrial Seismometer',
-    specs: 'Solar-Powered // Dual Beryllium Sensors // 21-Day Lifetime',
-    description: 'Detected astronaut footfalls, venting gases, and deep moonquakes, proving that the Moon is seismically active with a fractured outer megaregolith.',
-  },
-  {
-    id: 'sband_dish',
-    name: 'S-Band Erectable Antenna',
-    pos: [3.2, 1.8, -2.5],
-    title: '2.1m Collapsible Parabolic Dish',
-    specs: '2287.5 MHz High-Gain // 384,400km Earth Link',
-    description: 'Unfurled like an umbrella to provide high-bandwidth telemetry and color TV downlinks directly to NASA Deep Space Network stations on Earth.',
-  },
-];
-
 export const ApolloHotspots: React.FC = () => {
   const selectedHotspotId = useApolloMissionStore((s) => s.selectedHotspotId);
   const setSelectedHotspotId = useApolloMissionStore((s) => s.setSelectedHotspotId);
   const discoveredHotspots = useApolloMissionStore((s) => s.discoveredHotspots);
+  const terrainY = getLunarTerrainHeight(0, 0);
+
+  const hotspots = useMemo(() => [
+    {
+      id: 'kapton_foil',
+      name: 'Kapton Thermal Blanket',
+      pos: [0.0, terrainY + 1.6, 1.8] as [number, number, number],
+      title: 'Kapton & Mylar Radiation Foil',
+      specs: '25 Layers Aluminized Mylar // +120°C to -170°C Rating',
+      description: 'Crinkled gold and amber Kapton sheets isolated the ascent engine and cabin from direct solar radiation in the airless lunar vacuum.',
+    },
+    {
+      id: 'landing_gear',
+      name: 'Landing Strut & Contact Probe',
+      pos: [-2.2, terrainY + 0.65, 2.2] as [number, number, number],
+      title: 'Crushable Honeycomb Shock Absorber',
+      specs: 'Compressible Cartridge // 1.7m Lunar Contact Probe',
+      description: 'Deformable aluminum honeycomb absorbed vertical impact velocity. Blue "CONTACT LIGHT" illuminated when the 1.7m wire probe touched soil.',
+    },
+    {
+      id: 'mesa_tv',
+      name: 'MESA & Westinghouse TV Camera',
+      pos: [-1.35, terrainY + 1.45, 1.6] as [number, number, number],
+      title: 'Modular Equipment Stowage Assembly (MESA)',
+      specs: '10 fps // 320 lines monochrome // 228MHz VHF Relay',
+      description: 'Mounted inside Quad 4 of the descent stage. Neil Armstrong pulled a lanyard on the ladder porch to deploy the camera and broadcast humanity\'s first steps.',
+    },
+    {
+      id: 'lrrr_array',
+      name: 'Laser Ranging Retroreflector (LRRR)',
+      pos: [4.5, getLunarTerrainHeight(4.5, 6.0) + 0.35, 6.0] as [number, number, number],
+      title: '100 Fused-Silica Corner Cube Prisms',
+      specs: '384,400km Baseline // 2.56s Light Return // 532nm Nd:YAG',
+      description: 'Corner-cube prisms reflect green Earth laser pulses exactly back along their path of arrival, measuring the Moon\'s 3.8 cm/year orbital recession.',
+    },
+    {
+      id: 'psep_seismic',
+      name: 'Passive Seismic Experiment (PSEP)',
+      pos: [-5.2, getLunarTerrainHeight(-5.2, 5.5) + 0.35, 5.5] as [number, number, number],
+      title: 'First Extraterrestrial Seismometer',
+      specs: 'Solar-Powered // Dual Beryllium Sensors // 21-Day Lifetime',
+      description: 'Detected astronaut footfalls, venting gases, and deep moonquakes, proving that the Moon is seismically active with a fractured outer megaregolith.',
+    },
+    {
+      id: 'sband_dish',
+      name: 'S-Band Erectable Antenna',
+      pos: [1.75, terrainY + 3.8, -1.1] as [number, number, number],
+      title: '2.1m Collapsible Parabolic Dish',
+      specs: '2287.5 MHz High-Gain // 384,400km Earth Link',
+      description: 'Unfurled like an umbrella to provide high-bandwidth telemetry and color TV downlinks directly to NASA Deep Space Network stations on Earth.',
+    },
+  ], [terrainY]);
 
   return (
     <group>
-      {HARDWARE_HOTSPOTS.map((spot) => {
+      {hotspots.map((spot) => {
         const isSelected = selectedHotspotId === spot.id;
         const isDiscovered = discoveredHotspots.includes(spot.id);
 
         return (
           <group key={spot.id} position={spot.pos}>
-            {/* Pulsing Marker */}
+            {/* 3D Pulsing Holographic Diamond Beacon */}
             <mesh
               onClick={(e) => {
                 e.stopPropagation();
                 setSelectedHotspotId(isSelected ? null : spot.id);
               }}
             >
-              <sphereGeometry args={[0.09, 16, 16]} />
+              <octahedronGeometry args={[0.18, 0]} />
               <meshBasicMaterial
                 color={isSelected ? '#00F0FF' : isDiscovered ? '#10B981' : '#FFB800'}
               />
             </mesh>
 
-            {/* Diegetic HTML Label */}
-            <Html center distanceFactor={6} occlude className="pointer-events-auto select-none">
+            {/* Vertical Beacon Needle */}
+            <mesh position={[0, -0.22, 0]}>
+              <cylinderGeometry args={[0.015, 0.015, 0.44, 8]} />
+              <meshBasicMaterial color={isSelected ? '#00F0FF' : isDiscovered ? '#10B981' : '#FFB800'} />
+            </mesh>
+
+            {/* Pulsing ground ring */}
+            <mesh position={[0, -0.44, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+              <ringGeometry args={[0.14, 0.32, 16]} />
+              <meshBasicMaterial
+                color={isSelected ? '#00F0FF' : '#FFB800'}
+                transparent
+                opacity={0.7}
+                side={THREE.DoubleSide}
+              />
+            </mesh>
+
+            {/* Floating Spatial HTML Badge - Unoccluded for crystal clarity */}
+            <Html center distanceFactor={8} className="pointer-events-auto select-none">
               <div
                 onClick={(e) => {
                   e.stopPropagation();
                   setSelectedHotspotId(isSelected ? null : spot.id);
                 }}
-                className={`font-mono cursor-pointer rounded p-2 backdrop-blur-md transition-all duration-200 border shadow-2xl ${
+                className={`font-mono cursor-pointer rounded px-2.5 py-1.5 backdrop-blur-md transition-all duration-200 border shadow-2xl ${
                   isSelected
                     ? 'bg-[#05080F]/95 border-cyan-400 text-cyan-200 shadow-[0_0_20px_rgba(0,240,255,0.45)] w-64'
-                    : 'bg-[#05080F]/85 border-slate-700 text-slate-300 hover:border-cyan-400'
+                    : 'bg-[#05080F]/90 border-slate-700 text-slate-300 hover:border-cyan-400 hover:text-white'
                 }`}
               >
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 whitespace-nowrap">
                   <span
-                    className={`w-2 h-2 rounded-full ${isSelected ? 'animate-ping' : ''}`}
+                    className={`w-2 h-2 rounded-full flex-shrink-0 ${isSelected ? 'animate-ping' : ''}`}
                     style={{ backgroundColor: isDiscovered ? '#10B981' : '#00F0FF' }}
                   />
-                  <strong className="text-[10px] text-white truncate">{spot.name}</strong>
+                  <strong className="text-[9.5px] truncate">{spot.name}</strong>
                 </div>
 
                 {isSelected && (
@@ -334,7 +349,7 @@ export const ApolloHotspots: React.FC = () => {
 };
 
 // ==========================================
-// 4. 3 Triangulation Sites & Bonus Plaque
+// 5. 3 Triangulation Sites & Ladder Plaque
 // ==========================================
 export const TriangulationNodes: React.FC = () => {
   const completedSites = useApolloMissionStore((s) => s.completedSites);
@@ -361,7 +376,7 @@ export const TriangulationNodes: React.FC = () => {
             side={THREE.DoubleSide}
           />
         </mesh>
-        <Html center distanceFactor={8} occlude className="pointer-events-none select-none">
+        <Html center distanceFactor={8} className="pointer-events-none select-none">
           <div className="bg-[#05080F]/90 border border-cyan-400 px-2 py-1 rounded text-[8.5px] font-mono text-cyan-300 whitespace-nowrap">
             SITE 1: FOOTPAD BEARING [0.7 N/cm²]
           </div>
@@ -385,7 +400,6 @@ export const TriangulationNodes: React.FC = () => {
             side={THREE.DoubleSide}
           />
         </mesh>
-        {/* Large vesicular basalt boulder */}
         <mesh position={[0, 0.7, 0]} castShadow receiveShadow>
           <dodecahedronGeometry args={[1.4, 0]} />
           <meshToonMaterial
@@ -396,7 +410,7 @@ export const TriangulationNodes: React.FC = () => {
           />
           <Outlines thickness={0.02} color="#05080F" />
         </mesh>
-        <Html center distanceFactor={14} occlude className="pointer-events-none select-none">
+        <Html center distanceFactor={14} className="pointer-events-none select-none">
           <div className="bg-[#05080F]/90 border border-emerald-400 px-2 py-1 rounded text-[8.5px] font-mono text-emerald-300 whitespace-nowrap">
             SITE 2: WEST CRATER BASALT [3.8 Ga]
           </div>
@@ -414,13 +428,12 @@ export const TriangulationNodes: React.FC = () => {
             side={THREE.DoubleSide}
           />
         </mesh>
-        {/* 100-Cube Corner Retroreflector Tray */}
         <mesh position={[0, 0.35, 0]} rotation={[0.22, 0, 0]} castShadow receiveShadow>
           <boxGeometry args={[0.9, 0.25, 0.9]} />
           <meshStandardMaterial color="#C5D0DE" metalness={0.95} roughness={0.1} />
           <Outlines thickness={0.015} color="#05080F" />
         </mesh>
-        <Html center distanceFactor={9} occlude className="pointer-events-none select-none">
+        <Html center distanceFactor={9} className="pointer-events-none select-none">
           <div className="bg-[#05080F]/90 border border-amber-400 px-2 py-1 rounded text-[8.5px] font-mono text-amber-300 whitespace-nowrap">
             SITE 3: LRRR LASER PRISM TRAY
           </div>
@@ -439,7 +452,7 @@ export const TriangulationNodes: React.FC = () => {
           <meshStandardMaterial color="#E2E8F0" metalness={0.85} roughness={0.2} />
           <Outlines thickness={0.015} color="#05080F" />
         </mesh>
-        <Html center distanceFactor={4} occlude className="pointer-events-none select-none">
+        <Html center distanceFactor={4} className="pointer-events-none select-none">
           <div className="bg-[#05080F]/90 border border-amber-500/50 px-2 py-0.5 rounded text-[7.5px] font-mono text-amber-300 whitespace-nowrap">
             {bonusPlaqueScanned ? '★ PLAQUE SCANNED (+250 XP)' : 'FRONT LADDER PLAQUE [SCAN]'}
           </div>
@@ -450,7 +463,7 @@ export const TriangulationNodes: React.FC = () => {
 };
 
 // ==========================================
-// 5. 1969 Westinghouse Slow-Scan TV & Laser PiP
+// 6. 1969 Westinghouse Slow-Scan TV & Laser PiP
 // ==========================================
 export const ApolloSensorPiP: React.FC = () => {
   const activeInstrument = useApolloMissionStore((s) => s.activeInstrument);
@@ -462,10 +475,8 @@ export const ApolloSensorPiP: React.FC = () => {
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  // Render 1969 Apollo slow-scan scanlines and oscilloscope waveform
   useEffect(() => {
     let animId: number;
-    let phase = 0;
 
     const render = () => {
       const canvas = canvasRef.current;
@@ -476,18 +487,15 @@ export const ApolloSensorPiP: React.FC = () => {
       const w = canvas.width;
       const h = canvas.height;
 
-      // Dark monochrome phosphor background
       ctx.fillStyle = '#060B0E';
       ctx.fillRect(0, 0, w, h);
 
-      // Scanline ghosting
       ctx.fillStyle = 'rgba(255, 255, 255, 0.04)';
       for (let y = 0; y < h; y += 4) {
         ctx.fillRect(0, y, w, 1);
       }
 
       if (activeInstrument === 'LRRR_LASER_ARRAY') {
-        // Laser Oscilloscope 532nm Pulse Waveform
         ctx.strokeStyle = earthLaserLocked ? '#10B981' : '#00F0FF';
         ctx.lineWidth = 2.0;
         ctx.beginPath();
@@ -499,7 +507,6 @@ export const ApolloSensorPiP: React.FC = () => {
           const distToPulse = Math.abs(x - pulseCenter);
           let y = baselineY + (Math.random() - 0.5) * 4;
 
-          // Main return photon spike
           if (distToPulse < 35) {
             const amplitude = (lrrrPhotonReturnPct / 100) * 85.0;
             const gaussian = Math.exp(-Math.pow(distToPulse / 10.0, 2));
@@ -511,7 +518,6 @@ export const ApolloSensorPiP: React.FC = () => {
         }
         ctx.stroke();
 
-        // Target Threshold Line
         ctx.strokeStyle = 'rgba(255, 184, 0, 0.45)';
         ctx.setLineDash([4, 4]);
         ctx.beginPath();
@@ -520,13 +526,11 @@ export const ApolloSensorPiP: React.FC = () => {
         ctx.stroke();
         ctx.setLineDash([]);
       } else {
-        // 1969 Slow-Scan Monochrome Broadcast Mockup
         ctx.fillStyle = 'rgba(180, 200, 215, 0.15)';
         ctx.beginPath();
         ctx.arc(w * 0.45, h * 0.5, 45, 0, Math.PI * 2);
         ctx.fill();
 
-        // Réseau Fiducial Crosshairs (+)
         ctx.strokeStyle = '#FFFFFF';
         ctx.lineWidth = 1.2;
         const crosses = [
@@ -547,7 +551,6 @@ export const ApolloSensorPiP: React.FC = () => {
         });
       }
 
-      phase += 0.05;
       animId = requestAnimationFrame(render);
     };
 
@@ -557,7 +560,6 @@ export const ApolloSensorPiP: React.FC = () => {
 
   return (
     <div className="absolute top-4 right-4 z-40 w-[360px] bg-[#05080F]/95 border border-cyan-500/40 rounded shadow-2xl backdrop-blur-md overflow-hidden font-mono text-slate-200">
-      {/* Title Header */}
       <div className="px-3 py-1.5 bg-[#090E17] border-b border-cyan-500/30 flex items-center justify-between text-[10px]">
         <div className="flex items-center gap-1.5 text-cyan-300">
           <Tv className="w-3.5 h-3.5" />
@@ -568,11 +570,9 @@ export const ApolloSensorPiP: React.FC = () => {
         </div>
       </div>
 
-      {/* Screen Monitor Canvas */}
       <div className="relative w-full h-[200px] bg-black">
         <canvas ref={canvasRef} width={360} height={200} className="w-full h-full block" />
 
-        {/* Diegetic HUD Overlay text */}
         <div className="absolute top-2 left-2 text-[8.5px] text-cyan-300/80 space-y-0.5 pointer-events-none">
           <div>CAM AZIMUTH: {cameraAzimuthDeg.toFixed(1)}°</div>
           <div>CAM ELEVATION: {cameraElevationDeg.toFixed(1)}°</div>
@@ -589,7 +589,6 @@ export const ApolloSensorPiP: React.FC = () => {
         )}
       </div>
 
-      {/* Instrument Mode Selector Buttons */}
       <div className="p-2 bg-[#080D15] border-t border-slate-800 grid grid-cols-2 gap-1.5 text-[9px]">
         <button
           onClick={() => setActiveInstrument('WESTINGHOUSE_TV')}
@@ -618,7 +617,7 @@ export const ApolloSensorPiP: React.FC = () => {
 };
 
 // ==========================================
-// 6. 2-Step Kid-Friendly Buddy Hint Engine
+// 7. 2-Step Kid-Friendly Buddy Hint Engine
 // ==========================================
 export const ApolloBuddyEngine: React.FC = () => {
   const completedSites = useApolloMissionStore((s) => s.completedSites);
@@ -668,57 +667,90 @@ export const ApolloBuddyEngine: React.FC = () => {
 };
 
 // ==========================================
-// 7. Stationary Camera Director
+// 8. Multi-POV Camera Director & Controller
 // ==========================================
-function ApolloCameraDirector() {
+interface ApolloCameraDirectorProps {
+  controlsRef: React.RefObject<OrbitControlsImpl>;
+}
+
+function ApolloCameraDirector({ controlsRef }: ApolloCameraDirectorProps) {
   const { camera } = useThree();
+  const cameraMode = useApolloMissionStore((s) => s.cameraMode);
   const cameraAzimuthDeg = useApolloMissionStore((s) => s.cameraAzimuthDeg);
   const cameraElevationDeg = useApolloMissionStore((s) => s.cameraElevationDeg);
   const viewMode = useApolloMissionStore((s) => s.viewMode);
+  const prevMode = useRef(cameraMode);
 
-  useFrame((_, delta) => {
+  const terrainY = getLunarTerrainHeight(0, 0);
+  const lmCenter = useMemo(() => new THREE.Vector3(0, terrainY + 2.2, 0), [terrainY]);
+
+  // Handle camera mode transitions
+  useEffect(() => {
     if (viewMode !== 'SURFACE_SANDBOX') return;
 
-    // Station camera at MESA TV mast position on LM: [-1.6, 2.2, 1.8]
-    const eyePos = new THREE.Vector3(-1.6, getLunarTerrainHeight(0, 0) + 2.2, 1.8);
-    camera.position.copy(eyePos);
+    if (cameraMode === 'THIRD_PERSON_HERO' || cameraMode === 'FREE_ORBIT') {
+      if (controlsRef.current) {
+        controlsRef.current.target.copy(lmCenter);
+        controlsRef.current.update();
+      }
+      if (prevMode.current === 'MESA_TV_CAM' || prevMode.current === undefined) {
+        // Position camera in an elevated 3/4 hero vista viewing the full Lunar Module
+        camera.position.set(11.0, terrainY + 5.2, 11.0);
+        camera.lookAt(lmCenter);
+      }
+    } else if (cameraMode === 'MESA_TV_CAM') {
+      // Mount camera on MESA TV porch
+      const tvPos = new THREE.Vector3(-1.35, terrainY + 1.45, 1.6);
+      camera.position.copy(tvPos);
+    }
+    prevMode.current = cameraMode;
+  }, [cameraMode, viewMode, camera, controlsRef, lmCenter, terrainY]);
 
-    // Compute look-at point from spherical angles
-    const azRad = (cameraAzimuthDeg * Math.PI) / 180.0;
-    const elRad = (cameraElevationDeg * Math.PI) / 180.0;
+  useFrame(() => {
+    if (viewMode !== 'SURFACE_SANDBOX') return;
 
-    const lookTarget = new THREE.Vector3(
-      eyePos.x + Math.sin(azRad) * Math.cos(elRad) * 50.0,
-      eyePos.y + Math.sin(elRad) * 50.0,
-      eyePos.z + Math.cos(azRad) * Math.cos(elRad) * 50.0
-    );
+    if (cameraMode === 'MESA_TV_CAM') {
+      const eyePos = new THREE.Vector3(-1.35, terrainY + 1.45, 1.6);
+      camera.position.copy(eyePos);
 
-    camera.lookAt(lookTarget);
+      const azRad = (cameraAzimuthDeg * Math.PI) / 180.0;
+      const elRad = (cameraElevationDeg * Math.PI) / 180.0;
+
+      const lookTarget = new THREE.Vector3(
+        eyePos.x + Math.sin(azRad) * Math.cos(elRad) * 50.0,
+        eyePos.y + Math.sin(elRad) * 50.0,
+        eyePos.z + Math.cos(azRad) * Math.cos(elRad) * 50.0
+      );
+      camera.lookAt(lookTarget);
+    }
   });
 
   return null;
 }
 
 // ==========================================
-// 8. Main ApolloSurfaceSandbox Container
+// 9. Main ApolloSurfaceSandbox Container
 // ==========================================
 export const ApolloSurfaceSandbox: React.FC = () => {
-  const viewMode = useApolloMissionStore((s) => s.viewMode);
   const panCamera = useApolloMissionStore((s) => s.panCamera);
   const cleanLrrrDust = useApolloMissionStore((s) => s.cleanLrrrDust);
   const adjustLrrrTilt = useApolloMissionStore((s) => s.adjustLrrrTilt);
   const alignSBandDish = useApolloMissionStore((s) => s.alignSBandDish);
   const completeLevelAndAscend = useApolloMissionStore((s) => s.completeLevelAndAscend);
   const completedSites = useApolloMissionStore((s) => s.completedSites);
+  const cameraMode = useApolloMissionStore((s) => s.cameraMode);
 
-  // Global Keyboard Controls for stationary Apollo 11 base
+  const controlsRef = useRef<OrbitControlsImpl>(null);
+  const terrainY = getLunarTerrainHeight(0, 0);
+
+  // Global Keyboard Controls
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement)?.tagName)) return;
 
       const key = e.code;
 
-      // Pan & Tilt Controls [W/A/S/D]
+      // Pan & Tilt Controls for MESA TV / Laser Unit [W/A/S/D]
       if (key === 'KeyA' || key === 'ArrowLeft') panCamera(-2.5, 0);
       if (key === 'KeyD' || key === 'ArrowRight') panCamera(2.5, 0);
       if (key === 'KeyW' || key === 'ArrowUp') panCamera(0, 2.0);
@@ -762,27 +794,38 @@ export const ApolloSurfaceSandbox: React.FC = () => {
         shadow-mapSize-height={2048}
         shadow-bias={-0.0001}
       />
-      <ambientLight intensity={0.12} />
+      <ambientLight intensity={0.14} />
 
       {/* 3. PBR Environment reflections for Kapton foil */}
       <Environment preset="warehouse" environmentIntensity={0.5} />
 
-      {/* 4. Stationary Camera Director */}
-      <ApolloCameraDirector />
+      {/* 4. OrbitControls centered on Apollo LM when in 3rd Person or Free Roam */}
+      <OrbitControls
+        ref={controlsRef}
+        enabled={cameraMode === 'THIRD_PERSON_HERO' || cameraMode === 'FREE_ORBIT'}
+        target={[0, terrainY + 2.2, 0]}
+        minDistance={3.5}
+        maxDistance={50.0}
+        enableDamping
+        dampingFactor={0.06}
+      />
 
-      {/* 5. Faceted DEM Terrain */}
+      {/* 5. Camera Director */}
+      <ApolloCameraDirector controlsRef={controlsRef} />
+
+      {/* 6. Faceted DEM Terrain */}
       <LunarDemTerrain />
 
-      {/* 6. NASA Apollo Lunar Module (Eagle) */}
+      {/* 7. NASA Apollo Lunar Module (Eagle) */}
       <ApolloLMModel />
 
-      {/* 7. 6 Clickable Hardware Hotspots */}
+      {/* 8. 6 Clickable Hardware Hotspots */}
       <ApolloHotspots />
 
-      {/* 8. 3 Triangulation Sites & Ladder Plaque */}
+      {/* 9. 3 Triangulation Sites & Ladder Plaque */}
       <TriangulationNodes />
 
-      {/* 9. HTML Sensor PiP and 2-Step Buddy Hint Engine */}
+      {/* 10. HTML Sensor PiP and 2-Step Buddy Hint Engine */}
       <Html fullscreen className="pointer-events-none select-none">
         <ApolloSensorPiP />
         <ApolloBuddyEngine />

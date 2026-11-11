@@ -33,13 +33,14 @@ export const ApolloLevelScene: React.FC = () => {
       descentTimeRef.current += delta;
       const progress = Math.min(1.0, descentTimeRef.current / 2.6);
 
-      // Camera descends from space down to lander height
+      // Camera descends from space down to 3rd-person hero vista
+      const terrainY = getLunarTerrainHeight(0, 0);
       camera.position.set(
-        THREE.MathUtils.lerp(0.0, -1.6, progress),
-        THREE.MathUtils.lerp(35.0, getLunarTerrainHeight(0, 0) + 2.2, Math.pow(progress, 1.8)),
-        THREE.MathUtils.lerp(25.0, 1.8, progress)
+        THREE.MathUtils.lerp(0.0, 11.0, progress),
+        THREE.MathUtils.lerp(35.0, terrainY + 5.2, Math.pow(progress, 1.8)),
+        THREE.MathUtils.lerp(25.0, 11.0, progress)
       );
-      camera.lookAt(0, getLunarTerrainHeight(0, 0) + 1.2, 0);
+      camera.lookAt(0, terrainY + 2.0, 0);
 
       if (progress >= 1.0) {
         descentTimeRef.current = 0.0;

@@ -1,6 +1,7 @@
 import React, { useRef, useEffect } from 'react';
 import { Leva } from 'leva';
 import { useMissionStore } from './store/useMissionStore';
+import { useApolloMissionStore } from './store/useApolloMissionStore';
 import { RoverScene } from './components/canvas/RoverScene';
 import { MissionHUD } from './components/MissionHUD';
 import { DriveControls } from './components/CuriosityRover';
@@ -67,13 +68,22 @@ export const App: React.FC = () => {
 
       // Camera POV toggle [C]: Follow (3rd Person) <-> Free Roam Orbit
       if (key === 'KeyC') {
-        useMissionStore.getState().cycleCameraMode();
+        if (currentLevel === 'LEVEL_1_APOLLO_11') {
+          useApolloMissionStore.getState().cycleCameraMode();
+        } else {
+          useMissionStore.getState().cycleCameraMode();
+        }
         soundEngine.playUiBlip();
       }
 
       // Two-Tier toggle [G]: Surface Sandbox <-> Orbital Museum Globe
       if (key === 'KeyG') {
-        useMissionStore.getState().toggleTier();
+        if (currentLevel === 'LEVEL_1_APOLLO_11') {
+          const curView = useApolloMissionStore.getState().viewMode;
+          useApolloMissionStore.getState().setViewMode(curView === 'SURFACE_SANDBOX' ? 'ORBITAL_GLOBE' : 'SURFACE_SANDBOX');
+        } else {
+          useMissionStore.getState().toggleTier();
+        }
         soundEngine.playUiBlip();
       }
 
