@@ -65,6 +65,12 @@ export const App: React.FC = () => {
         soundEngine.playUiBlip();
       }
 
+      // Two-Tier toggle [G]: Surface Sandbox <-> Orbital Museum Globe
+      if (key === 'KeyG') {
+        useMissionStore.getState().toggleTier();
+        soundEngine.playUiBlip();
+      }
+
       // Exit Laser Telescope [ESC] or [Q]
       if (key === 'Escape' || key === 'KeyQ') {
         const { cameraMode } = useMissionStore.getState();

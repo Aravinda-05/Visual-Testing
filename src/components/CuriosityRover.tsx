@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { useGLTF, Outlines, Html } from '@react-three/drei';
 import { useFrame } from '@react-three/fiber';
 import { useMissionStore } from '../store/useMissionStore';
-import { getTerrainHeight, ROCK_HAZARDS, JOHN_KLEIN_POS } from '../utils/terrainMath';
+import { getTerrainHeight, ROCK_HAZARDS, JOHN_KLEIN_POS, resolveBoulderCollision } from '../utils/terrainSampler';
 import { soundEngine } from '../utils/soundEngine';
 import { getFourStepGradientMap, applyCelShadingToHierarchy } from '../utils/celShading';
 import { RoverHotspots } from './RoverHotspots';
@@ -384,6 +384,18 @@ export const CuriosityRover: React.FC<CuriosityRoverProps> = ({ controlsRef }) =
     const fwdZ = Math.cos(yaw.current);
     pos.current.x += fwdX * speed.current * dt;
     pos.current.z += fwdZ * speed.current * dt;
+
+    // Resolve low-poly obstacle boulder collisions:
+    // Nudges chassis smoothly around rocks without clipping or sticking
+    const boulderResolution = resolveBoulderCollision(pos.current.x, pos.current.z, 1.45);
+    pos.current.x = boulderResolution.x;
+    pos.current.z = boulderResolution.z;
+
+    if (boulderResolution.collided && Math.abs(speed.current) > 2.8) {
+      damageWheel(2.0 * dt);
+      soundEngine.playWarningBeep();
+      speed.current *= 0.88; // Gentle deflection deceleration
+    }
 
     // Gale Crater boundary clamp ([-88, 88])
     pos.current.x = THREE.MathUtils.clamp(pos.current.x, -88, 88);

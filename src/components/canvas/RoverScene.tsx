@@ -7,6 +7,8 @@ import { Perf } from 'r3f-perf';
 import { useMissionStore, CameraMode } from '../../store/useMissionStore';
 import { CuriosityRover, DriveControls } from '../CuriosityRover';
 import { GaleCraterTerrain } from '../GaleCraterTerrain';
+import { CompressedSandboxArena } from '../CompressedSandboxArena';
+import { OrbitalMuseumGlobe } from '../OrbitalMuseumGlobe';
 import { ScienceMechanics } from '../ScienceMechanics';
 import { LightingAndAtmosphere } from './LightingAndAtmosphere';
 import { DustTrail } from './DustTrail';
@@ -25,6 +27,8 @@ function CameraDirector({ controlsRef }: CameraDirectorProps) {
   const { camera } = useThree();
   const cameraMode = useMissionStore((s) => s.cameraMode);
   const missionPhase = useMissionStore((s) => s.missionPhase);
+  const activeTier = useMissionStore((s) => s.activeTier);
+  const prevTier = useRef(activeTier);
 
   const targetSpot = useRef(
     new THREE.Vector3(
@@ -41,11 +45,28 @@ function CameraDirector({ controlsRef }: CameraDirectorProps) {
   const prevRoverPos = useRef(new THREE.Vector3());
   const prevMode = useRef<CameraMode>(cameraMode);
 
+  // Handle transitions between Orbital Museum Globe and Surface Sandbox
+  useEffect(() => {
+    if (activeTier === 'ORBITAL_MUSEUM') {
+      camera.position.set(0, 2.0, 10.8);
+      camera.lookAt(0, 0, 0);
+      if (controlsRef.current) {
+        controlsRef.current.target.set(0, 0, 0);
+        controlsRef.current.update();
+      }
+    } else if (prevTier.current === 'ORBITAL_MUSEUM' && activeTier === 'SURFACE_SANDBOX') {
+      camera.position.set(0, 9.8, -16.0);
+      cameraYaw.current = null;
+      camY.current = null;
+    }
+    prevTier.current = activeTier;
+  }, [activeTier, camera, controlsRef]);
+
   // Mouse wheel scroll to zoom in / out
   useEffect(() => {
     const handleWheel = (e: WheelEvent) => {
       // In 3rd person follow mode, wheel scroll dynamically zooms follow distance
-      if (useMissionStore.getState().cameraMode === 'THIRD_PERSON_DRONE') {
+      if (useMissionStore.getState().activeTier === 'SURFACE_SANDBOX' && useMissionStore.getState().cameraMode === 'THIRD_PERSON_DRONE') {
         const delta = e.deltaY * 0.008;
         followDistance.current = THREE.MathUtils.clamp(followDistance.current + delta, 6.0, 35.0);
       }
@@ -56,6 +77,9 @@ function CameraDirector({ controlsRef }: CameraDirectorProps) {
 
   useFrame((state, delta) => {
     const dt = Math.min(delta, 0.08);
+
+    // Orbital globe camera is managed via OrbitControls
+    if (activeTier === 'ORBITAL_MUSEUM') return;
 
     // During Soul-Transfer, camera ascent is handled by ScienceMechanics
     if (missionPhase === 'SOUL_TRANSFER_COMPLETE') return;
@@ -191,6 +215,7 @@ export const RoverScene: React.FC<RoverSceneProps> = ({ driveControlsRef }) => {
   const controlsRef = useRef<OrbitControlsImpl>(null);
   const eraShader = useMissionStore((s) => s.eraShaderOverride);
   const cameraMode = useMissionStore((s) => s.cameraMode);
+  const activeTier = useMissionStore((s) => s.activeTier);
 
   // Map eraShader to Lighting era key
   const eraKey = eraShader === '1967_ANALOG' ? '1967_SURVEYOR' : eraShader === '1997_RETRO_16BIT' ? '1997_SOJOURNER' : '2021_MODERN';
@@ -212,14 +237,15 @@ export const RoverScene: React.FC<RoverSceneProps> = ({ driveControlsRef }) => {
         {/* Performance Monitor */}
         <Perf position="top-left" />
 
-        {/* Orbit Controls (Available in FREE_ORBIT mode) */}
+        {/* Orbit Controls (Available in ORBITAL_MUSEUM or FREE_ORBIT mode) */}
         <OrbitControls
           ref={controlsRef}
-          enabled={cameraMode === 'FREE_ORBIT'}
-          minDistance={2.5}
-          maxDistance={85}
-          maxPolarAngle={Math.PI / 2 - 0.05}
-          enableDamping={false}
+          enabled={activeTier === 'ORBITAL_MUSEUM' || cameraMode === 'FREE_ORBIT'}
+          minDistance={activeTier === 'ORBITAL_MUSEUM' ? 5.2 : 2.5}
+          maxDistance={activeTier === 'ORBITAL_MUSEUM' ? 22.0 : 85}
+          maxPolarAngle={activeTier === 'ORBITAL_MUSEUM' ? Math.PI : Math.PI / 2 - 0.05}
+          enableDamping={true}
+          dampingFactor={0.06}
         />
 
         {/* Dynamic Camera Director */}
@@ -228,34 +254,44 @@ export const RoverScene: React.FC<RoverSceneProps> = ({ driveControlsRef }) => {
         {/* Dynamic Martian Gale Crater Lighting and Atmospheric Distance Fog */}
         <LightingAndAtmosphere eraKey={eraKey} sunIntensity={2.5} />
 
-        {/* 1. Gale Crater Terrain + John Klein Mudstone Target + Rock Hazards */}
-        <GaleCraterTerrain />
+        {/* Two-Tier System: Tier 1 Orbital Museum Globe vs Tier 2 Surface Sandbox */}
+        {activeTier === 'ORBITAL_MUSEUM' ? (
+          <OrbitalMuseumGlobe />
+        ) : (
+          <>
+            {/* 1. Gale Crater Macro Topography */}
+            <GaleCraterTerrain />
 
-        {/* 2. NASA Curiosity Rover (GLTF Draco + 4-band Toon + Outlines + Spatial Tags) */}
-        <CuriosityRover controlsRef={driveControlsRef} />
+            {/* 2. Compressed Greatest Hits Sandbox Arena (5 Landmarks + 24 Low-Poly Boulders) */}
+            <CompressedSandboxArena />
 
-        {/* 3. Regolith Dust Particle Trail behind wheels */}
-        <DustTrail />
+            {/* 3. NASA Curiosity Rover (GLTF Draco + 4-band Toon + Outlines + Spatial Tags) */}
+            <CuriosityRover controlsRef={driveControlsRef} />
 
-        {/* 4. ChemCam 1064nm Laser, Plasma Sparks & Soul-Transfer Ascending Beam */}
-        <ScienceMechanics />
+            {/* 4. Regolith Dust Particle Trail behind wheels */}
+            <DustTrail />
 
-        {/* Tactical Landing Pad Target Grid (local to touchdown site) */}
-        <Grid
-          position={[0, 0.02, 0]}
-          args={[18, 18]}
-          cellSize={1.5}
-          cellThickness={0.8}
-          cellColor="#00F0FF"
-          sectionSize={6}
-          sectionThickness={1.2}
-          sectionColor="#FFB800"
-          fadeDistance={20}
-          fadeStrength={1.5}
-        />
+            {/* 5. ChemCam 1064nm Laser, Plasma Sparks & Soul-Transfer Ascending Beam */}
+            <ScienceMechanics />
 
-        {/* 5. Dedicated Remote Sensing Mast Secondary Camera & PiP Optical Sensor Renderer */}
-        <MastCameraRenderer />
+            {/* Tactical Landing Pad Target Grid (local to touchdown site) */}
+            <Grid
+              position={[0, 0.02, 0]}
+              args={[18, 18]}
+              cellSize={1.5}
+              cellThickness={0.8}
+              cellColor="#00F0FF"
+              sectionSize={6}
+              sectionThickness={1.2}
+              sectionColor="#FFB800"
+              fadeDistance={20}
+              fadeStrength={1.5}
+            />
+
+            {/* 6. Dedicated Remote Sensing Mast Secondary Camera & PiP Optical Sensor Renderer */}
+            <MastCameraRenderer />
+          </>
+        )}
       </Canvas>
     </div>
   );

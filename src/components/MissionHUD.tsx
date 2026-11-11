@@ -20,6 +20,9 @@ import {
   Signal,
   X,
   Cpu,
+  Compass,
+  Award,
+  Globe,
 } from 'lucide-react';
 
 export const MissionHUD: React.FC = () => {
@@ -43,6 +46,13 @@ export const MissionHUD: React.FC = () => {
   const setSelectedHotspotId = useMissionStore((s) => s.setSelectedHotspotId);
   const isOpticalFeedOpen = useMissionStore((s) => s.isOpticalFeedOpen);
   const toggleOpticalFeed = useMissionStore((s) => s.toggleOpticalFeed);
+  const activeTier = useMissionStore((s) => s.activeTier);
+  const setActiveTier = useMissionStore((s) => s.setActiveTier);
+  const toggleTier = useMissionStore((s) => s.toggleTier);
+  const discoveredLandmarks = useMissionStore((s) => s.discoveredLandmarks);
+  const codexXp = useMissionStore((s) => s.codexXp);
+  const drillFaultActive = useMissionStore((s) => s.drillFaultActive);
+  const resolveDrillFault = useMissionStore((s) => s.resolveDrillFault);
 
   const startMission = useMissionStore((s) => s.startMission);
   const setCameraMode = useMissionStore((s) => s.setCameraMode);
@@ -238,6 +248,49 @@ export const MissionHUD: React.FC = () => {
             </button>
           </div>
 
+          {/* Two-Tier Mode Switcher (Surface Sandbox vs Orbital Museum Globe) */}
+          <div className="flex items-center gap-1.5 my-1.5 pt-1.5 border-t border-slate-800">
+            <span className="text-[8px] text-slate-400 font-bold uppercase tracking-wider">TIER:</span>
+            <div className="flex items-center rounded bg-black/60 border border-slate-800 p-0.5 gap-1">
+              <button
+                onClick={() => {
+                  setActiveTier('SURFACE_SANDBOX');
+                  soundEngine.playUiBlip();
+                }}
+                className={`px-2 py-0.5 rounded text-[8px] font-bold transition-all ${
+                  activeTier === 'SURFACE_SANDBOX'
+                    ? 'bg-cyan-500 text-black shadow-[0_0_8px_rgba(0,240,255,0.4)]'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                SURFACE
+              </button>
+              <button
+                onClick={() => {
+                  setActiveTier('ORBITAL_MUSEUM');
+                  soundEngine.playUiBlip();
+                }}
+                className={`px-2 py-0.5 rounded text-[8px] font-bold transition-all ${
+                  activeTier === 'ORBITAL_MUSEUM'
+                    ? 'bg-amber-400 text-black shadow-[0_0_8px_rgba(251,191,36,0.4)]'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                GLOBE (2K)
+              </button>
+            </div>
+            <button
+              onClick={() => {
+                toggleTier();
+                soundEngine.playUiBlip();
+              }}
+              className="text-[8px] text-slate-400 hover:text-cyan-300 ml-auto transition-colors"
+              title="Press [G] to toggle Orbital Globe"
+            >
+              [G]
+            </button>
+          </div>
+
           <div className="flex items-center justify-between text-[9px] text-slate-400">
             <button
               onClick={toggleCodex}
@@ -252,6 +305,12 @@ export const MissionHUD: React.FC = () => {
                 HW: {discoveredHotspots.length}/6
               </span>
             </button>
+            <div className="flex items-center gap-1.5 font-bold">
+              <span className="text-amber-400">XP: {codexXp}</span>
+              <span className="px-1 py-0.2 rounded bg-slate-900 border border-slate-700 text-slate-300">
+                SITES: {discoveredLandmarks.length}/5
+              </span>
+            </div>
           </div>
         </div>
 
@@ -357,6 +416,41 @@ export const MissionHUD: React.FC = () => {
           <OpticalSensorPiP />
         </div>
       </header>
+
+      {/* 1B. DRILL MOTOR FAULT MODAL / BANNER (Triggered at Site 3 Mudstone) */}
+      {drillFaultActive && (
+        <div className="pointer-events-auto absolute top-20 left-1/2 -translate-x-1/2 bg-red-950/95 border-2 border-red-500 rounded-lg p-3.5 shadow-[0_0_35px_rgba(239,68,68,0.7)] backdrop-blur-md font-mono text-center animate-bounce z-30 max-w-md">
+          <div className="flex items-center justify-center gap-2 text-red-300 font-extrabold text-xs mb-1">
+            <AlertTriangle className="w-4 h-4 text-red-400 animate-ping" />
+            <span>CRITICAL HARDWARE FAULT // DRILL FEED MOTOR STALL</span>
+          </div>
+          <p className="text-[9.5px] text-slate-200 mb-2.5">
+            Percussive drill mechanism stalled in Yellowknife Bay mudstone matrix.
+            Execute reverse-torque pulse to free drill bit and resume science operations!
+          </p>
+          <button
+            onClick={() => {
+              resolveDrillFault();
+              soundEngine.playAntennaClick();
+            }}
+            className="px-4 py-1.5 rounded bg-red-500 hover:bg-red-400 text-black font-extrabold text-[10px] uppercase tracking-wider transition shadow-lg"
+          >
+            EXECUTE REVERSE PERCUSSION PULSE →
+          </button>
+        </div>
+      )}
+
+      {/* 1C. MACRO TIER ORBITAL GLOBE OVERLAY BANNER */}
+      {activeTier === 'ORBITAL_MUSEUM' && (
+        <div className="pointer-events-auto absolute top-20 left-1/2 -translate-x-1/2 bg-[#05070B]/95 border-2 border-cyan-400 rounded-lg px-5 py-2.5 shadow-[0_0_30px_rgba(0,240,255,0.4)] backdrop-blur-md font-mono text-center z-30">
+          <div className="text-xs font-extrabold text-[#00F0FF] tracking-wider mb-0.5">
+            MACRO TIER // NASA MOLA CARTOGRAPHIC GLOBE
+          </div>
+          <div className="text-[9.5px] text-slate-300">
+            Rotate globe to inspect real Martian topography • Click Curiosity Pin (Gale Crater) or press [G] to enter Surface Sandbox
+          </div>
+        </div>
+      )}
 
       {/* 2. CHEMCAM TELESCOPE OVERLAY (Engaged when cameraMode === 'CHEMCAM_TELESCOPE') */}
       {cameraMode === 'CHEMCAM_TELESCOPE' && (
@@ -642,6 +736,54 @@ export const MissionHUD: React.FC = () => {
                       <span className="text-[8px] text-amber-400/80 font-bold flex-shrink-0">+</span>
                     )}
                   </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Compressed Arena Landmarks Progress Card */}
+          <div className="bg-amber-950/30 border border-amber-400/50 rounded p-3 mb-4 shadow-[0_0_15px_rgba(251,191,36,0.15)]">
+            <div className="flex items-center justify-between text-xs font-mono font-bold mb-2">
+              <span className="flex items-center gap-1.5 text-amber-300">
+                <Compass className="w-4 h-4 text-amber-400 animate-spin" style={{ animationDuration: '15s' }} />
+                <span>ARENA LANDMARKS</span>
+              </span>
+              <span className="px-2 py-0.5 rounded font-mono font-bold bg-amber-950 border border-amber-400 text-amber-300">
+                {discoveredLandmarks.length} / 5 ({codexXp} XP)
+              </span>
+            </div>
+
+            <div className="space-y-1.5 text-[9.5px] font-mono">
+              {[
+                { id: 'SPAWN_PAD', name: 'Bradbury Landing', tag: '0m', xp: 0 },
+                { id: 'SITE_1_BASALT', name: 'Gale Rim Basalt (30° Ledge)', tag: '~55m', xp: 100 },
+                { id: 'SITE_2_CONGLOMERATE', name: 'Hottah Riverbed Gravel', tag: '~59m', xp: 150 },
+                { id: 'SITE_3_MUDSTONE', name: 'Yellowknife Bay (John Klein)', tag: '~69m', xp: 200 },
+                { id: 'BONUS_RELIC', name: 'Sky Crane Descent Relic', tag: '~85m', xp: 250 },
+              ].map((site) => {
+                const isLogged = discoveredLandmarks.includes(site.id);
+                return (
+                  <div
+                    key={site.id}
+                    className={`flex items-center justify-between p-1.5 rounded border ${
+                      isLogged
+                        ? 'bg-emerald-950/40 border-emerald-500/60 text-emerald-200'
+                        : 'bg-black/60 border-slate-800 text-slate-400'
+                    }`}
+                  >
+                    <span className="truncate pr-1">
+                      {site.name} <span className="text-[8px] opacity-70">({site.tag})</span>
+                    </span>
+                    {isLogged ? (
+                      <span className="flex items-center gap-1 text-[8.5px] text-emerald-300 font-bold flex-shrink-0">
+                        +{site.xp} XP <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                      </span>
+                    ) : (
+                      <span className="text-[8px] text-amber-400/80 font-bold flex-shrink-0">
+                        +{site.xp} XP
+                      </span>
+                    )}
+                  </div>
                 );
               })}
             </div>

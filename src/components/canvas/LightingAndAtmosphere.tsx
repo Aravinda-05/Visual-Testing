@@ -1,6 +1,7 @@
 import React, { useRef } from 'react';
 import * as THREE from 'three';
 import { EraKey } from '../../types/era';
+import { useMissionStore } from '../../store/useMissionStore';
 
 interface LightingAndAtmosphereProps {
   eraKey: EraKey;
@@ -12,9 +13,21 @@ export const LightingAndAtmosphere: React.FC<LightingAndAtmosphereProps> = ({
   sunIntensity = 2.4,
 }) => {
   const dirLightRef = useRef<THREE.DirectionalLight>(null);
+  const activeTier = useMissionStore((s) => s.activeTier);
 
   // Era-specific atmospheric fog and sky tint
   const getAtmosphereConfig = () => {
+    if (activeTier === 'ORBITAL_MUSEUM') {
+      return {
+        fogColor: '#030508',
+        fogNear: 500,
+        fogFar: 2000,
+        sunColor: '#FFF8F0',
+        ambientColor: '#1E293B',
+        ambientIntensity: 0.65,
+      };
+    }
+
     switch (eraKey) {
       case '1967_SURVEYOR':
         return {
@@ -60,8 +73,10 @@ export const LightingAndAtmosphere: React.FC<LightingAndAtmosphereProps> = ({
 
   return (
     <>
-      {/* Dynamic atmospheric distance fog */}
-      <fog attach="fog" args={[config.fogColor, config.fogNear, config.fogFar]} />
+      {/* Dynamic atmospheric distance fog (only in surface sandbox) */}
+      {activeTier === 'SURFACE_SANDBOX' && (
+        <fog attach="fog" args={[config.fogColor, config.fogNear, config.fogFar]} />
+      )}
       <color attach="background" args={[config.fogColor]} />
 
       {/* Ambient fill for soft shadow detail */}

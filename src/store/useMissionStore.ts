@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { ARENA_LANDMARKS } from '../utils/terrainSampler';
 
 export type MissionPhase =
   | 'BRIEFING'
@@ -11,6 +12,7 @@ export type MissionPhase =
 
 export type CameraMode = 'THIRD_PERSON_DRONE' | 'FREE_ORBIT' | 'CHEMCAM_TELESCOPE';
 export type EraShader = '1967_ANALOG' | '1997_RETRO_16BIT' | '2012_MSL_DEFAULT';
+export type GameplayTier = 'SURFACE_SANDBOX' | 'ORBITAL_MUSEUM';
 
 export interface SpectralPeaks {
   H: number;  // Hydrogen (656nm)
@@ -46,9 +48,22 @@ export interface MissionState {
   lastLaserFireTime: number;
   selectedHotspotId: string | null;
   discoveredHotspots: string[];
+  activeTier: GameplayTier;
+  discoveredLandmarks: string[];
+  activeLandmarkTarget: string | null;
+  codexXp: number;
+  drillFaultActive: boolean;
+  drillFaultResolved: boolean;
 
   // Actions
   startMission: () => void;
+  setActiveTier: (tier: GameplayTier) => void;
+  toggleTier: () => void;
+  discoverLandmark: (id: string) => { newlyDiscovered: boolean; xpAwarded: number };
+  setActiveLandmarkTarget: (id: string | null) => void;
+  triggerDrillFault: () => void;
+  resolveDrillFault: () => void;
+  addCodexXp: (amount: number) => void;
   setMissionPhase: (phase: MissionPhase) => void;
   setSelectedHotspotId: (id: string | null) => void;
   discoverHotspot: (id: string) => void;
@@ -100,6 +115,12 @@ const INITIAL_STATE = {
   lastLaserFireTime: 0,
   selectedHotspotId: null as string | null,
   discoveredHotspots: [] as string[],
+  activeTier: 'SURFACE_SANDBOX' as GameplayTier,
+  discoveredLandmarks: ['SPAWN_PAD'] as string[],
+  activeLandmarkTarget: 'SITE_1_BASALT' as string | null,
+  codexXp: 0,
+  drillFaultActive: false,
+  drillFaultResolved: false,
 };
 
 export const useMissionStore = create<MissionState>((set, get) => ({
@@ -108,6 +129,46 @@ export const useMissionStore = create<MissionState>((set, get) => ({
 
   startMission: () => {
     set({ missionPhase: 'EXPLORING' });
+  },
+
+  setActiveTier: (tier: GameplayTier) => {
+    set({ activeTier: tier });
+  },
+
+  toggleTier: () => {
+    set((s) => ({
+      activeTier: s.activeTier === 'SURFACE_SANDBOX' ? 'ORBITAL_MUSEUM' : 'SURFACE_SANDBOX',
+    }));
+  },
+
+  discoverLandmark: (id: string) => {
+    const { discoveredLandmarks, codexXp } = get();
+    if (discoveredLandmarks.includes(id)) {
+      return { newlyDiscovered: false, xpAwarded: 0 };
+    }
+    const landmark = ARENA_LANDMARKS[id];
+    const xp = landmark ? landmark.xpReward : 50;
+    set({
+      discoveredLandmarks: [...discoveredLandmarks, id],
+      codexXp: codexXp + xp,
+    });
+    return { newlyDiscovered: true, xpAwarded: xp };
+  },
+
+  setActiveLandmarkTarget: (id: string | null) => {
+    set({ activeLandmarkTarget: id });
+  },
+
+  triggerDrillFault: () => {
+    set({ drillFaultActive: true });
+  },
+
+  resolveDrillFault: () => {
+    set({ drillFaultActive: false, drillFaultResolved: true });
+  },
+
+  addCodexXp: (amount: number) => {
+    set((s) => ({ codexXp: s.codexXp + amount }));
   },
 
   setSelectedHotspotId: (id: string | null) => {
