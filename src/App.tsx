@@ -34,10 +34,16 @@ export const App: React.FC = () => {
 
       const key = e.code;
       const input = driveControlsRef.current;
+      const currentLevel = useMissionStore.getState().activeLevel;
 
       // Prevent page scrolling on Space and Arrow keys
       if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(key)) {
         e.preventDefault();
+      }
+
+      // If Level 1 (Apollo 11) is active, avoid intercepting Q and E
+      if (currentLevel === 'LEVEL_1_APOLLO_11' && (key === 'KeyQ' || key === 'KeyE')) {
+        return;
       }
 
       // Driving inputs

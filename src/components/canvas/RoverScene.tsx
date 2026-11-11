@@ -13,6 +13,7 @@ import { ScienceMechanics } from '../ScienceMechanics';
 import { LightingAndAtmosphere } from './LightingAndAtmosphere';
 import { DustTrail } from './DustTrail';
 import { MastCameraRenderer } from '../OpticalSensorPiP';
+import { ApolloLevelScene } from '../ApolloLevelScene';
 import { JOHN_KLEIN_POS, getTerrainHeight } from '../../utils/terrainMath';
 
 interface CameraDirectorProps {
@@ -216,6 +217,7 @@ export const RoverScene: React.FC<RoverSceneProps> = ({ driveControlsRef }) => {
   const eraShader = useMissionStore((s) => s.eraShaderOverride);
   const cameraMode = useMissionStore((s) => s.cameraMode);
   const activeTier = useMissionStore((s) => s.activeTier);
+  const activeLevel = useMissionStore((s) => s.activeLevel);
 
   // Map eraShader to Lighting era key
   const eraKey = eraShader === '1967_ANALOG' ? '1967_SURVEYOR' : eraShader === '1997_RETRO_16BIT' ? '1997_SOJOURNER' : '2021_MODERN';
@@ -237,59 +239,66 @@ export const RoverScene: React.FC<RoverSceneProps> = ({ driveControlsRef }) => {
         {/* Performance Monitor */}
         <Perf position="top-left" />
 
-        {/* Orbit Controls (Available in ORBITAL_MUSEUM or FREE_ORBIT mode) */}
-        <OrbitControls
-          ref={controlsRef}
-          enabled={activeTier === 'ORBITAL_MUSEUM' || cameraMode === 'FREE_ORBIT'}
-          minDistance={activeTier === 'ORBITAL_MUSEUM' ? 5.2 : 2.5}
-          maxDistance={activeTier === 'ORBITAL_MUSEUM' ? 22.0 : 85}
-          maxPolarAngle={activeTier === 'ORBITAL_MUSEUM' ? Math.PI : Math.PI / 2 - 0.05}
-          enableDamping={true}
-          dampingFactor={0.06}
-        />
-
-        {/* Dynamic Camera Director */}
-        <CameraDirector controlsRef={controlsRef} />
-
-        {/* Dynamic Martian Gale Crater Lighting and Atmospheric Distance Fog */}
-        <LightingAndAtmosphere eraKey={eraKey} sunIntensity={2.5} />
-
-        {/* Two-Tier System: Tier 1 Orbital Museum Globe vs Tier 2 Surface Sandbox */}
-        {activeTier === 'ORBITAL_MUSEUM' ? (
-          <OrbitalMuseumGlobe />
+        {/* Level 1: Apollo 11 Lunar Module (Moon) vs Level 2: Curiosity Rover (Mars) */}
+        {activeLevel === 'LEVEL_1_APOLLO_11' ? (
+          <ApolloLevelScene />
         ) : (
           <>
-            {/* 1. Gale Crater Macro Topography */}
-            <GaleCraterTerrain />
-
-            {/* 2. Compressed Greatest Hits Sandbox Arena (5 Landmarks + 24 Low-Poly Boulders) */}
-            <CompressedSandboxArena />
-
-            {/* 3. NASA Curiosity Rover (GLTF Draco + 4-band Toon + Outlines + Spatial Tags) */}
-            <CuriosityRover controlsRef={driveControlsRef} />
-
-            {/* 4. Regolith Dust Particle Trail behind wheels */}
-            <DustTrail />
-
-            {/* 5. ChemCam 1064nm Laser, Plasma Sparks & Soul-Transfer Ascending Beam */}
-            <ScienceMechanics />
-
-            {/* Tactical Landing Pad Target Grid (local to touchdown site) */}
-            <Grid
-              position={[0, 0.02, 0]}
-              args={[18, 18]}
-              cellSize={1.5}
-              cellThickness={0.8}
-              cellColor="#00F0FF"
-              sectionSize={6}
-              sectionThickness={1.2}
-              sectionColor="#FFB800"
-              fadeDistance={20}
-              fadeStrength={1.5}
+            {/* Orbit Controls (Available in ORBITAL_MUSEUM or FREE_ORBIT mode) */}
+            <OrbitControls
+              ref={controlsRef}
+              enabled={activeTier === 'ORBITAL_MUSEUM' || cameraMode === 'FREE_ORBIT'}
+              minDistance={activeTier === 'ORBITAL_MUSEUM' ? 5.2 : 2.5}
+              maxDistance={activeTier === 'ORBITAL_MUSEUM' ? 22.0 : 85}
+              maxPolarAngle={activeTier === 'ORBITAL_MUSEUM' ? Math.PI : Math.PI / 2 - 0.05}
+              enableDamping={true}
+              dampingFactor={0.06}
             />
 
-            {/* 6. Dedicated Remote Sensing Mast Secondary Camera & PiP Optical Sensor Renderer */}
-            <MastCameraRenderer />
+            {/* Dynamic Camera Director */}
+            <CameraDirector controlsRef={controlsRef} />
+
+            {/* Dynamic Martian Gale Crater Lighting and Atmospheric Distance Fog */}
+            <LightingAndAtmosphere eraKey={eraKey} sunIntensity={2.5} />
+
+            {/* Two-Tier System: Tier 1 Orbital Museum Globe vs Tier 2 Surface Sandbox */}
+            {activeTier === 'ORBITAL_MUSEUM' ? (
+              <OrbitalMuseumGlobe />
+            ) : (
+              <>
+                {/* 1. Gale Crater Macro Topography */}
+                <GaleCraterTerrain />
+
+                {/* 2. Compressed Greatest Hits Sandbox Arena (5 Landmarks + 24 Low-Poly Boulders) */}
+                <CompressedSandboxArena />
+
+                {/* 3. NASA Curiosity Rover (GLTF Draco + 4-band Toon + Outlines + Spatial Tags) */}
+                <CuriosityRover controlsRef={driveControlsRef} />
+
+                {/* 4. Regolith Dust Particle Trail behind wheels */}
+                <DustTrail />
+
+                {/* 5. ChemCam 1064nm Laser, Plasma Sparks & Soul-Transfer Ascending Beam */}
+                <ScienceMechanics />
+
+                {/* Tactical Landing Pad Target Grid (local to touchdown site) */}
+                <Grid
+                  position={[0, 0.02, 0]}
+                  args={[18, 18]}
+                  cellSize={1.5}
+                  cellThickness={0.8}
+                  cellColor="#00F0FF"
+                  sectionSize={6}
+                  sectionThickness={1.2}
+                  sectionColor="#FFB800"
+                  fadeDistance={20}
+                  fadeStrength={1.5}
+                />
+
+                {/* 6. Dedicated Remote Sensing Mast Secondary Camera & PiP Optical Sensor Renderer */}
+                <MastCameraRenderer />
+              </>
+            )}
           </>
         )}
       </Canvas>

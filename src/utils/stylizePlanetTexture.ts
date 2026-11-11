@@ -145,14 +145,21 @@ function synthesizeProceduralMoon(ctx: CanvasRenderingContext2D, width: number, 
     ctx.fill();
   };
 
-  // Lunar Maria
-  drawMare(20.0, -30.0, 24.0, '#353D47'); // Mare Imbrium
-  drawMare(8.0, -50.0, 28.0, '#2C333D');  // Oceanus Procellarum
-  drawMare(8.0, 20.0, 18.0, '#38414B');   // Mare Tranquillitatis
-  drawMare(15.0, 15.0, 14.0, '#3C4550');  // Mare Serenitatis
-  drawMare(-15.0, -18.0, 16.0, '#3A424C'); // Mare Nubium
-  drawMare(25.0, -55.0, 6.0, '#CAD5E0');  // Aristarchus bright crater
-  drawMare(-43.0, -11.0, 7.0, '#D6E0EC'); // Tycho crater
+  // Lunar Maria & Highland Features
+  drawMare(32.8, -15.6, 26.0, '#323A44'); // Mare Imbrium
+  drawMare(18.4, -57.4, 30.0, '#2A313B'); // Oceanus Procellarum
+  drawMare(8.5, 31.4, 20.0, '#303943');   // Mare Tranquillitatis (Apollo 11 context)
+  drawMare(28.0, 17.5, 16.0, '#363E48');  // Mare Serenitatis
+  drawMare(-19.0, 18.0, 14.0, '#343C46'); // Mare Nectaris
+  drawMare(-15.0, -18.0, 16.0, '#38404A'); // Mare Nubium
+  drawMare(10.0, -20.0, 12.0, '#3E4650'); // Mare Insularum
+  drawMare(17.0, 59.0, 15.0, '#2D343E');  // Mare Crisium
+
+  // Bright Impact Crater Rays & Peaks
+  drawMare(23.7, -47.4, 6.0, '#CAD5E0');  // Aristarchus
+  drawMare(9.7, -20.1, 7.5, '#C4CFDC');   // Copernicus
+  drawMare(-43.3, -11.2, 9.0, '#DDE5F0'); // Tycho with ray center
+  drawMare(3.2, -12.1, 5.0, '#C2CDDA');   // Fra Mauro highland region
 }
 
 /**
@@ -297,13 +304,13 @@ export async function createStylizedPlanetTextures(
           band = 5; // Bright Albedo Peaks & Polar Frost
         }
       } else {
-        // Moon 6-Band Quantization
-        if (lum < 0.20) band = 0;
-        else if (lum < 0.35) band = 1;
-        else if (lum < 0.50) band = 2;
-        else if (lum < 0.65) band = 3;
-        else if (lum < 0.80) band = 4;
-        else band = 5;
+        // Moon 6-Band Graphic Novel Quantization
+        if (lum < 0.22) band = 0;       // Band 0: Deep Mare Basalt (#1E242B)
+        else if (lum < 0.36) band = 1;  // Band 1: Lowland Maria Plains (#39424E)
+        else if (lum < 0.50) band = 2;  // Band 2: Transitional Regolith (#5C6775)
+        else if (lum < 0.65) band = 3;  // Band 3: Highland Anorthosite (#8A95A5)
+        else if (lum < 0.80) band = 4;  // Band 4: Crater Rim Ejecta (#B8C2CE)
+        else band = 5;                  // Band 5: Bright Ray System Peaks (#E6ECF2)
       }
 
       bandBuffer[yOffset + x] = band;

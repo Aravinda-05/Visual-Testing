@@ -47,6 +47,8 @@ export const MissionHUD: React.FC = () => {
   const isOpticalFeedOpen = useMissionStore((s) => s.isOpticalFeedOpen);
   const toggleOpticalFeed = useMissionStore((s) => s.toggleOpticalFeed);
   const activeTier = useMissionStore((s) => s.activeTier);
+  const activeLevel = useMissionStore((s) => s.activeLevel);
+  const setActiveLevel = useMissionStore((s) => s.setActiveLevel);
   const setActiveTier = useMissionStore((s) => s.setActiveTier);
   const toggleTier = useMissionStore((s) => s.toggleTier);
   const discoveredLandmarks = useMissionStore((s) => s.discoveredLandmarks);
@@ -161,14 +163,47 @@ export const MissionHUD: React.FC = () => {
           <div className="flex items-center space-x-2 pb-1 mb-1.5 border-b border-cyan-500/30">
             <Radio className="w-4 h-4 text-[#00F0FF] animate-pulse" />
             <span className="font-extrabold text-xs tracking-widest text-[#00F0FF]">
-              NODE M-3B // CURIOSITY (MSL)
+              {activeLevel === 'LEVEL_1_APOLLO_11' ? 'NODE L-1 // APOLLO 11 (EAGLE)' : 'NODE M-3B // CURIOSITY (MSL)'}
             </span>
             <span className="text-[9px] px-1 py-0.2 rounded bg-cyan-950 border border-cyan-400 text-cyan-200">
-              GALE CRATER
+              {activeLevel === 'LEVEL_1_APOLLO_11' ? 'TRANQUILITY BASE' : 'GALE CRATER'}
             </span>
             <span className="text-[9px] px-1 py-0.2 rounded bg-emerald-950/80 border border-emerald-400 text-emerald-300 font-bold">
-              MARS TREK DEM
+              {activeLevel === 'LEVEL_1_APOLLO_11' ? 'MOON DEM' : 'MARS TREK DEM'}
             </span>
+          </div>
+
+          {/* Mission Switcher Pills */}
+          <div className="flex items-center gap-1.5 mb-1.5 pb-1.5 border-b border-slate-800">
+            <span className="text-[8px] text-slate-400 font-bold uppercase tracking-wider">LEVEL:</span>
+            <div className="flex items-center rounded bg-black/60 border border-slate-800 p-0.5 gap-1">
+              <button
+                onClick={() => {
+                  setActiveLevel('LEVEL_1_APOLLO_11');
+                  soundEngine.playUiBlip();
+                }}
+                className={`px-2 py-0.5 rounded text-[8px] font-bold transition-all ${
+                  activeLevel === 'LEVEL_1_APOLLO_11'
+                    ? 'bg-cyan-500 text-black shadow-[0_0_8px_rgba(0,240,255,0.5)]'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                1. APOLLO 11 (MOON)
+              </button>
+              <button
+                onClick={() => {
+                  setActiveLevel('LEVEL_2_CURIOSITY_MSL');
+                  soundEngine.playUiBlip();
+                }}
+                className={`px-2 py-0.5 rounded text-[8px] font-bold transition-all ${
+                  activeLevel === 'LEVEL_2_CURIOSITY_MSL'
+                    ? 'bg-amber-400 text-black shadow-[0_0_8px_rgba(251,191,36,0.5)]'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                2. CURIOSITY (MARS)
+              </button>
+            </div>
           </div>
 
           <div className="flex items-center gap-2 text-[10px] text-slate-300 mb-1.5">
@@ -315,7 +350,8 @@ export const MissionHUD: React.FC = () => {
         </div>
 
         {/* Top-Right Column: Mission Directive, Spectrum & Live Optical Telemetry PiP */}
-        <div className="flex flex-col items-end gap-2.5 pointer-events-auto">
+        {activeLevel === 'LEVEL_2_CURIOSITY_MSL' && (
+          <div className="flex flex-col items-end gap-2.5 pointer-events-auto">
           {/* Directive Card */}
           <div className="bg-[#05070B]/90 border border-cyan-500/40 rounded p-2.5 shadow-[0_4px_24px_rgba(0,0,0,0.8)] backdrop-blur-md w-[360px]">
             <div className="flex items-center justify-between pb-1 mb-1.5 border-b border-cyan-500/30">
@@ -415,7 +451,8 @@ export const MissionHUD: React.FC = () => {
           {/* Docked Live Optical Telemetry Feed (PiP) */}
           <OpticalSensorPiP />
         </div>
-      </header>
+      )}
+    </header>
 
       {/* 1B. DRILL MOTOR FAULT MODAL / BANNER (Triggered at Site 3 Mudstone) */}
       {drillFaultActive && (
@@ -542,69 +579,73 @@ export const MissionHUD: React.FC = () => {
 
       {/* 4. BOTTOM BAR: Oscilloscope & Telemetry Strip */}
       <footer className="p-3 flex flex-wrap justify-between items-end gap-3">
-        {/* Bottom-Left: Live Oscilloscope (MMRTG Temp, Cap, Wheel) */}
-        <div className="pointer-events-auto bg-[#05070B]/90 border border-cyan-500/40 rounded p-2.5 shadow-[0_4px_24px_rgba(0,0,0,0.8)] backdrop-blur-md">
-          <div className="flex items-center justify-between pb-1 mb-1 border-b border-cyan-500/30 text-[9.5px]">
-            <span className="font-bold text-cyan-300">TELEMETRY OSCILLOSCOPE</span>
-            <span className="text-slate-400">CH1: MMRTG | CH2: WHEEL</span>
+        {/* Bottom-Left: Live Oscilloscope (MMRTG Temp, Cap, Wheel) - Curiosity MSL */}
+        {activeLevel === 'LEVEL_2_CURIOSITY_MSL' && (
+          <div className="pointer-events-auto bg-[#05070B]/90 border border-cyan-500/40 rounded p-2.5 shadow-[0_4px_24px_rgba(0,0,0,0.8)] backdrop-blur-md">
+            <div className="flex items-center justify-between pb-1 mb-1 border-b border-cyan-500/30 text-[9.5px]">
+              <span className="font-bold text-cyan-300">TELEMETRY OSCILLOSCOPE</span>
+              <span className="text-slate-400">CH1: MMRTG | CH2: WHEEL</span>
+            </div>
+
+            <canvas ref={oscCanvasRef} width={220} height={46} className="bg-black/60 rounded border border-cyan-950 mb-1.5" />
+
+            <div className="grid grid-cols-3 gap-2 text-[9px]">
+              <div>
+                <span className="text-slate-400 block">MMRTG TEMP:</span>
+                <strong className={mmrtgCoreTempC > 210 ? 'text-red-400 animate-pulse' : 'text-amber-400'}>
+                  {mmrtgCoreTempC.toFixed(1)}°C
+                </strong>
+              </div>
+              <div>
+                <span className="text-slate-400 block">CAPACITOR:</span>
+                <strong className="text-cyan-300">{capacitorCharge.toFixed(0)}%</strong>
+              </div>
+              <div>
+                <span className="text-slate-400 block">AL WHEEL:</span>
+                <strong className={wheelIntegrityPct < 60 ? 'text-red-400' : 'text-emerald-400'}>
+                  {wheelIntegrityPct.toFixed(0)}%
+                </strong>
+              </div>
+            </div>
+
+            {/* Overheat Warning Banner */}
+            {mmrtgCooldown && (
+              <div className="mt-1.5 p-1 bg-red-950/80 border border-red-500 text-red-300 text-[8.5px] font-bold rounded flex items-center justify-between animate-pulse">
+                <span>THERMAL SHIFT LOCKOUT:</span>
+                <span>COOLDOWN {cooldownTimer.toFixed(1)}s</span>
+              </div>
+            )}
           </div>
-
-          <canvas ref={oscCanvasRef} width={220} height={46} className="bg-black/60 rounded border border-cyan-950 mb-1.5" />
-
-          <div className="grid grid-cols-3 gap-2 text-[9px]">
-            <div>
-              <span className="text-slate-400 block">MMRTG TEMP:</span>
-              <strong className={mmrtgCoreTempC > 210 ? 'text-red-400 animate-pulse' : 'text-amber-400'}>
-                {mmrtgCoreTempC.toFixed(1)}°C
-              </strong>
-            </div>
-            <div>
-              <span className="text-slate-400 block">CAPACITOR:</span>
-              <strong className="text-cyan-300">{capacitorCharge.toFixed(0)}%</strong>
-            </div>
-            <div>
-              <span className="text-slate-400 block">AL WHEEL:</span>
-              <strong className={wheelIntegrityPct < 60 ? 'text-red-400' : 'text-emerald-400'}>
-                {wheelIntegrityPct.toFixed(0)}%
-              </strong>
-            </div>
-          </div>
-
-          {/* Overheat Warning Banner */}
-          {mmrtgCooldown && (
-            <div className="mt-1.5 p-1 bg-red-950/80 border border-red-500 text-red-300 text-[8.5px] font-bold rounded flex items-center justify-between animate-pulse">
-              <span>THERMAL SHIFT LOCKOUT:</span>
-              <span>COOLDOWN {cooldownTimer.toFixed(1)}s</span>
-            </div>
-          )}
-        </div>
+        )}
 
         {/* Bottom-Center: Action Prompts */}
-        <div className="pointer-events-auto flex items-center gap-2">
-          {missionPhase === 'SCIENCE_UNLOCKED' && (
-            <button
-              onClick={() => {
-                setCameraMode('THIRD_PERSON_DRONE');
-                setMissionPhase('ANTENNA_ALIGN');
-              }}
-              className="px-4 py-2 rounded bg-emerald-600 text-white font-bold text-xs border border-emerald-300 shadow-[0_0_20px_rgba(16,185,129,0.5)] hover:bg-emerald-500 transition animate-bounce"
-            >
-              ADVANCE TO ANTENNA ALIGNMENT →
-            </button>
-          )}
+        {activeLevel === 'LEVEL_2_CURIOSITY_MSL' && (
+          <div className="pointer-events-auto flex items-center gap-2">
+            {missionPhase === 'SCIENCE_UNLOCKED' && (
+              <button
+                onClick={() => {
+                  setCameraMode('THIRD_PERSON_DRONE');
+                  setMissionPhase('ANTENNA_ALIGN');
+                }}
+                className="px-4 py-2 rounded bg-emerald-600 text-white font-bold text-xs border border-emerald-300 shadow-[0_0_20px_rgba(16,185,129,0.5)] hover:bg-emerald-500 transition animate-bounce"
+              >
+                ADVANCE TO ANTENNA ALIGNMENT →
+              </button>
+            )}
 
-          {cameraMode === 'CHEMCAM_TELESCOPE' && (
-            <button
-              onClick={() => {
-                exitTelescope();
-                soundEngine.playUiBlip();
-              }}
-              className="px-3 py-1.5 rounded bg-slate-800 text-slate-200 font-bold text-xs border border-slate-600 hover:bg-slate-700 transition shadow-md"
-            >
-              EXIT TELESCOPE [ESC]
-            </button>
-          )}
-        </div>
+            {cameraMode === 'CHEMCAM_TELESCOPE' && (
+              <button
+                onClick={() => {
+                  exitTelescope();
+                  soundEngine.playUiBlip();
+                }}
+                className="px-3 py-1.5 rounded bg-slate-800 text-slate-200 font-bold text-xs border border-slate-600 hover:bg-slate-700 transition shadow-md"
+              >
+                EXIT TELESCOPE [ESC]
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Bottom-Right: Controls Cheat Sheet & Reset */}
         <div className="pointer-events-auto bg-[#05070B]/90 border border-cyan-500/40 rounded p-2 text-[9.5px] text-slate-300 shadow-[0_4px_24px_rgba(0,0,0,0.8)] backdrop-blur-md">
@@ -612,7 +653,9 @@ export const MissionHUD: React.FC = () => {
             <div>
               <div className="text-cyan-300 font-bold mb-0.5">CONTROLS:</div>
               <div className="text-slate-400">
-                [WASD / Arrows] Drive • [C] POV (Follow/Orbit) • [E] Optical Feed • [Space] ChemCam • [ESC] Exit Laser • [R] Reset
+                {activeLevel === 'LEVEL_1_APOLLO_11'
+                  ? '[WASD / Arrows] Pan TV & Laser • [F] Clean Dust • [Q/E] Prism Tilt • [T] S-Band Earth Link'
+                  : '[WASD / Arrows] Drive • [C] POV (Follow/Orbit) • [E] Optical Feed • [Space] ChemCam • [ESC] Exit Laser • [R] Reset'}
               </div>
             </div>
             <button

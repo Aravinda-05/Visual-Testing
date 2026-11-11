@@ -13,6 +13,7 @@ export type MissionPhase =
 export type CameraMode = 'THIRD_PERSON_DRONE' | 'FREE_ORBIT' | 'CHEMCAM_TELESCOPE';
 export type EraShader = '1967_ANALOG' | '1997_RETRO_16BIT' | '2012_MSL_DEFAULT';
 export type GameplayTier = 'SURFACE_SANDBOX' | 'ORBITAL_MUSEUM';
+export type MissionLevel = 'LEVEL_1_APOLLO_11' | 'LEVEL_2_CURIOSITY_MSL';
 
 export interface SpectralPeaks {
   H: number;  // Hydrogen (656nm)
@@ -49,6 +50,7 @@ export interface MissionState {
   selectedHotspotId: string | null;
   discoveredHotspots: string[];
   activeTier: GameplayTier;
+  activeLevel: MissionLevel;
   discoveredLandmarks: string[];
   activeLandmarkTarget: string | null;
   codexXp: number;
@@ -57,6 +59,7 @@ export interface MissionState {
 
   // Actions
   startMission: () => void;
+  setActiveLevel: (level: MissionLevel) => void;
   setActiveTier: (tier: GameplayTier) => void;
   toggleTier: () => void;
   discoverLandmark: (id: string) => { newlyDiscovered: boolean; xpAwarded: number };
@@ -116,6 +119,7 @@ const INITIAL_STATE = {
   selectedHotspotId: null as string | null,
   discoveredHotspots: [] as string[],
   activeTier: 'SURFACE_SANDBOX' as GameplayTier,
+  activeLevel: 'LEVEL_1_APOLLO_11' as MissionLevel,
   discoveredLandmarks: ['SPAWN_PAD'] as string[],
   activeLandmarkTarget: 'SITE_1_BASALT' as string | null,
   codexXp: 0,
@@ -129,6 +133,10 @@ export const useMissionStore = create<MissionState>((set, get) => ({
 
   startMission: () => {
     set({ missionPhase: 'EXPLORING' });
+  },
+
+  setActiveLevel: (level: MissionLevel) => {
+    set({ activeLevel: level });
   },
 
   setActiveTier: (tier: GameplayTier) => {
